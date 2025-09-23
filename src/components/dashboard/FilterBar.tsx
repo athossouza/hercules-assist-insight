@@ -98,16 +98,15 @@ export const FilterBar = ({ filters, onFiltersChange, filterOptions }: FilterBar
 
           {/* Product Family Filter */}
           <Select
-            value={filters.productFamily}
+            value={filters.productFamily || undefined}
             onValueChange={(value) => 
-              onFiltersChange({ ...filters, productFamily: value })
+              onFiltersChange({ ...filters, productFamily: value || '' })
             }
           >
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Família do Produto" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas as Famílias</SelectItem>
               {filterOptions.productFamilies.map((family) => (
                 <SelectItem key={family} value={family}>
                   {family}
@@ -118,16 +117,15 @@ export const FilterBar = ({ filters, onFiltersChange, filterOptions }: FilterBar
 
           {/* Status Filter */}
           <Select
-            value={filters.status}
+            value={filters.status || undefined}
             onValueChange={(value) => 
-              onFiltersChange({ ...filters, status: value })
+              onFiltersChange({ ...filters, status: value || '' })
             }
           >
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os Status</SelectItem>
               {filterOptions.statuses.map((status) => (
                 <SelectItem key={status} value={status}>
                   {status}
@@ -138,16 +136,15 @@ export const FilterBar = ({ filters, onFiltersChange, filterOptions }: FilterBar
 
           {/* State Filter */}
           <Select
-            value={filters.state}
+            value={filters.state || undefined}
             onValueChange={(value) => 
-              onFiltersChange({ ...filters, state: value })
+              onFiltersChange({ ...filters, state: value || '' })
             }
           >
             <SelectTrigger className="w-[120px]">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os Estados</SelectItem>
               {filterOptions.states.map((state) => (
                 <SelectItem key={state} value={state}>
                   {state}
