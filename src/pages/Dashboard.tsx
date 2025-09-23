@@ -5,7 +5,9 @@ import { ProductChart } from "@/components/dashboard/ProductChart";
 import { DefectChart } from "@/components/dashboard/DefectChart";
 import { TrendChart } from "@/components/dashboard/TrendChart";
 import { StatusChart } from "@/components/dashboard/StatusChart";
-import { StateChart } from "@/components/dashboard/StateChart";
+import { CityChart } from "@/components/dashboard/CityChart";
+import { AuthorizedChart } from "@/components/dashboard/AuthorizedChart";
+import { AIInsights } from "@/components/dashboard/AIInsights";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -20,7 +22,8 @@ const Dashboard = () => {
     defectRanking,
     monthlyTrends,
     statusDistribution,
-    stateDistribution,
+    cityDistribution,
+    authorizedDistribution,
     filterOptions
   } = useDashboardData();
 
@@ -110,8 +113,19 @@ const Dashboard = () => {
           <StatusChart data={statusDistribution} />
         </div>
 
-        {/* Geographic Analysis */}
-        <StateChart data={stateDistribution} />
+        {/* Geographic and Authorized Analysis */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CityChart data={cityDistribution} />
+          <AuthorizedChart data={authorizedDistribution} />
+        </div>
+
+        {/* AI Insights */}
+        <AIInsights 
+          kpiData={kpiData}
+          productRanking={productRanking}
+          defectRanking={defectRanking}
+          statusDistribution={statusDistribution}
+        />
       </div>
 
       {/* Footer */}

@@ -6,8 +6,9 @@ import {
   DefectRanking, 
   MonthlyTrend, 
   StatusDistribution, 
-  StateDistribution,
-  DashboardFilters 
+  CityDistribution,
+  AuthorizedDistribution,
+  DashboardFilters
 } from '@/types/dashboard';
 
 const parseDate = (dateStr: string): Date | null => {
@@ -230,19 +231,35 @@ export const useDashboardData = () => {
       .sort((a, b) => b.quantidade - a.quantidade);
   }, [filteredData]);
 
-  // Calculate state distribution
-  const stateDistribution: StateDistribution[] = useMemo(() => {
-    const stateCounts: { [key: string]: number } = {};
+  // Calculate city distribution
+  const cityDistribution: CityDistribution[] = useMemo(() => {
+    const cityCounts: { [key: string]: number } = {};
     
     filteredData.forEach(item => {
-      const state = item["UF Posto"] || item["UF Cons"];
-      if (state) {
-        stateCounts[state] = (stateCounts[state] || 0) + 1;
+      const city = item["Cidade Posto"];
+      if (city && city.trim() !== '') {
+        cityCounts[city] = (cityCounts[city] || 0) + 1;
       }
     });
     
-    return Object.entries(stateCounts)
-      .map(([estado, quantidade]) => ({ estado, quantidade }))
+    return Object.entries(cityCounts)
+      .map(([cidade, quantidade]) => ({ cidade, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade);
+  }, [filteredData]);
+
+  // Calculate authorized distribution
+  const authorizedDistribution: AuthorizedDistribution[] = useMemo(() => {
+    const authorizedCounts: { [key: string]: number } = {};
+    
+    filteredData.forEach(item => {
+      const authorized = item["Razão Social Posto"];
+      if (authorized && authorized.trim() !== '') {
+        authorizedCounts[authorized] = (authorizedCounts[authorized] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(authorizedCounts)
+      .map(([autorizada, quantidade]) => ({ autorizada, quantidade }))
       .sort((a, b) => b.quantidade - a.quantidade);
   }, [filteredData]);
 
@@ -273,7 +290,8 @@ export const useDashboardData = () => {
     defectRanking,
     monthlyTrends,
     statusDistribution,
-    stateDistribution,
+    cityDistribution,
+    authorizedDistribution,
     filterOptions
   };
 };

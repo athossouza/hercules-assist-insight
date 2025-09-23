@@ -1,19 +1,24 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChartCard } from './ChartCard';
-import { StateDistribution } from '@/types/dashboard';
+import { AuthorizedDistribution } from '@/types/dashboard';
 
-interface StateChartProps {
-  data: StateDistribution[];
+interface AuthorizedChartProps {
+  data: AuthorizedDistribution[];
 }
 
-export const StateChart = ({ data }: StateChartProps) => {
-  // Show top 15 states
-  const chartData = data.slice(0, 15);
+export const AuthorizedChart = ({ data }: AuthorizedChartProps) => {
+  // Show top 10 authorized services
+  const chartData = data.slice(0, 10).map(item => ({
+    ...item,
+    autorizada: item.autorizada.length > 20 
+      ? item.autorizada.substring(0, 20) + '...' 
+      : item.autorizada
+  }));
 
   return (
     <ChartCard
-      title="Distribuição de OSs por Estado"
-      description="Quantidade de Ordens de Serviço originadas em cada estado"
+      title="Distribuição de OSs por Autorizada"
+      description="Quantidade de Ordens de Serviço por empresa autorizada"
     >
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -28,9 +33,12 @@ export const StateChart = ({ data }: StateChartProps) => {
           >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis 
-              dataKey="estado" 
+              dataKey="autorizada" 
               stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              fontSize={10}
+              angle={-45}
+              textAnchor="end"
+              height={100}
             />
             <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
             <Tooltip 
@@ -44,7 +52,7 @@ export const StateChart = ({ data }: StateChartProps) => {
             />
             <Bar 
               dataKey="quantidade" 
-              fill="hsl(var(--chart-4))" 
+              fill="hsl(var(--chart-3))" 
               radius={[4, 4, 0, 0]}
               name="Quantidade de OSs"
             />

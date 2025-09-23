@@ -86,8 +86,13 @@ export interface StatusDistribution {
   percentage: number;
 }
 
-export interface StateDistribution {
-  estado: string;
+export interface CityDistribution {
+  cidade: string;
+  quantidade: number;
+}
+
+export interface AuthorizedDistribution {
+  autorizada: string;
   quantidade: number;
 }
 
