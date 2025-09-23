@@ -18,6 +18,7 @@ const COLORS = [
 export const StatusChart = ({ data }: StatusChartProps) => {
   const chartData = data.map((item, index) => ({
     ...item,
+    name: item.status, // Add name property for legend
     fill: COLORS[index % COLORS.length]
   }));
 
