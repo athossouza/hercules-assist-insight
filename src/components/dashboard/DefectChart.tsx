@@ -7,40 +7,41 @@ interface DefectChartProps {
 }
 
 export const DefectChart = ({ data }: DefectChartProps) => {
-  const chartData = data.map(item => ({
+  const chartData = data.slice(0, 8).map(item => ({
     ...item,
-    defeito: item.defeito.length > 40 ? item.defeito.substring(0, 40) + '...' : item.defeito
+    defeito: item.defeito.length > 25 ? item.defeito.substring(0, 25) + '...' : item.defeito,
+    defeitoCompleto: item.defeito // Keep full name for tooltip
   }));
 
   return (
     <ChartCard
-      title="Top 10 Defeitos Mais Comuns"
+      title="Top 8 Defeitos Mais Comuns"
       description="Ranking dos defeitos que mais aparecem nos registros"
     >
-      <div className="h-80">
+      <div className="h-96">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
             margin={{
               top: 20,
               right: 30,
-              left: 20,
-              bottom: 80,
+              left: 40,
+              bottom: 100,
             }}
-            layout="horizontal"
           >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis 
-              type="number"
+              dataKey="defeito"
               stroke="hsl(var(--muted-foreground))" 
-              fontSize={12}
+              fontSize={11}
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              interval={0}
             />
             <YAxis 
-              type="category"
-              dataKey="defeito" 
               stroke="hsl(var(--muted-foreground))"
-              fontSize={10}
-              width={150}
+              fontSize={12}
             />
             <Tooltip 
               contentStyle={{
@@ -50,11 +51,15 @@ export const DefectChart = ({ data }: DefectChartProps) => {
                 boxShadow: 'var(--shadow-md)'
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
+              formatter={(value: number, name: string, props: any) => [
+                `${value} ocorrências`,
+                props.payload?.defeitoCompleto || 'Defeito'
+              ]}
             />
             <Bar 
               dataKey="quantidade" 
               fill="hsl(var(--chart-2))" 
-              radius={[0, 4, 4, 0]}
+              radius={[4, 4, 0, 0]}
               name="Quantidade de Ocorrências"
             />
           </BarChart>
