@@ -1,0 +1,279 @@
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  ServiceOrder, 
+  KPIData, 
+  ProductRanking, 
+  DefectRanking, 
+  MonthlyTrend, 
+  StatusDistribution, 
+  StateDistribution,
+  DashboardFilters 
+} from '@/types/dashboard';
+
+const parseDate = (dateStr: string): Date | null => {
+  if (!dateStr || dateStr.trim() === '') return null;
+  
+  // Handle format: "05/05/2025  16:59:43"
+  const cleanDateStr = dateStr.split('  ')[0]; // Remove time part
+  const [day, month, year] = cleanDateStr.split('/');
+  
+  if (!day || !month || !year) return null;
+  
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+};
+
+const calculateDaysDifference = (startDate: Date | null, endDate: Date | null): number => {
+  if (!startDate || !endDate) return 0;
+  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+export const useDashboardData = () => {
+  const [data, setData] = useState<ServiceOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<DashboardFilters>({
+    dateRange: { start: null, end: null },
+    productFamily: '',
+    status: '',
+    state: ''
+  });
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/data/ATwebReport.csv');
+        const csvText = await response.text();
+        
+        // Parse CSV
+        const lines = csvText.split('\n');
+        const headers = lines[0].split(';').map(header => header.replace('﻿', '').trim());
+        
+        const parsedData: ServiceOrder[] = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          const values = line.split(';');
+          const row: any = {};
+          
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+          
+          parsedData.push(row as ServiceOrder);
+        }
+        
+        setData(parsedData);
+      } catch (err) {
+        setError('Erro ao carregar dados: ' + (err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Filter data based on current filters
+  const filteredData = useMemo(() => {
+    return data.filter(item => {
+      // Date filter
+      if (filters.dateRange.start || filters.dateRange.end) {
+        const itemDate = parseDate(item["Data Abertura"]);
+        if (!itemDate) return false;
+        
+        if (filters.dateRange.start && itemDate < filters.dateRange.start) return false;
+        if (filters.dateRange.end && itemDate > filters.dateRange.end) return false;
+      }
+      
+      // Product family filter
+      if (filters.productFamily && item["Família Prod"] !== filters.productFamily) {
+        return false;
+      }
+      
+      // Status filter
+      if (filters.status && item.Status !== filters.status) {
+        return false;
+      }
+      
+      // State filter
+      if (filters.state && item["UF Posto"] !== filters.state && item["UF Cons"] !== filters.state) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [data, filters]);
+
+  // Calculate KPIs
+  const kpiData: KPIData = useMemo(() => {
+    const totalOrders = filteredData.length;
+    
+    // Calculate average service time for warranty orders
+    const warrantyOrders = filteredData.filter(item => item.Finalidade === 'Garantia');
+    let totalServiceDays = 0;
+    let validServiceTimeCount = 0;
+    
+    warrantyOrders.forEach(item => {
+      const openDate = parseDate(item["Data Abertura"]);
+      const closeDate = parseDate(item["Data Fechamento"]);
+      
+      if (openDate && closeDate) {
+        totalServiceDays += calculateDaysDifference(openDate, closeDate);
+        validServiceTimeCount++;
+      }
+    });
+    
+    const avgServiceTime = validServiceTimeCount > 0 ? totalServiceDays / validServiceTimeCount : 0;
+    
+    // Calculate average product lifetime
+    let totalLifetimeDays = 0;
+    let validLifetimeCount = 0;
+    
+    filteredData.forEach(item => {
+      const fabricationDate = parseDate(item["Data Fabricação"]);
+      const openDate = parseDate(item["Data Abertura"]);
+      
+      if (fabricationDate && openDate) {
+        totalLifetimeDays += calculateDaysDifference(fabricationDate, openDate);
+        validLifetimeCount++;
+      }
+    });
+    
+    const avgProductLifetime = validLifetimeCount > 0 ? totalLifetimeDays / validLifetimeCount : 0;
+    
+    // Calculate warranty percentage
+    const warrantyCount = filteredData.filter(item => item.Finalidade === 'Garantia').length;
+    const warrantyPercentage = totalOrders > 0 ? (warrantyCount / totalOrders) * 100 : 0;
+    
+    return {
+      totalOrders,
+      avgServiceTime: Math.round(avgServiceTime),
+      avgProductLifetime: Math.round(avgProductLifetime),
+      warrantyPercentage: Math.round(warrantyPercentage * 100) / 100
+    };
+  }, [filteredData]);
+
+  // Calculate product ranking
+  const productRanking: ProductRanking[] = useMemo(() => {
+    const productCounts: { [key: string]: number } = {};
+    
+    filteredData.forEach(item => {
+      const product = item["Desc Produto"];
+      if (product) {
+        productCounts[product] = (productCounts[product] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(productCounts)
+      .map(([produto, quantidade]) => ({ produto, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade)
+      .slice(0, 10);
+  }, [filteredData]);
+
+  // Calculate defect ranking
+  const defectRanking: DefectRanking[] = useMemo(() => {
+    const defectCounts: { [key: string]: number } = {};
+    
+    filteredData.forEach(item => {
+      const defect = item["Defeito Constatado"];
+      if (defect && defect.trim() !== '') {
+        defectCounts[defect] = (defectCounts[defect] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(defectCounts)
+      .map(([defeito, quantidade]) => ({ defeito, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade)
+      .slice(0, 10);
+  }, [filteredData]);
+
+  // Calculate monthly trends
+  const monthlyTrends: MonthlyTrend[] = useMemo(() => {
+    const monthlyCounts: { [key: string]: number } = {};
+    
+    filteredData.forEach(item => {
+      const date = parseDate(item["Data Abertura"]);
+      if (date) {
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(monthlyCounts)
+      .map(([month, quantidade]) => ({ month, quantidade }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+  }, [filteredData]);
+
+  // Calculate status distribution
+  const statusDistribution: StatusDistribution[] = useMemo(() => {
+    const statusCounts: { [key: string]: number } = {};
+    
+    filteredData.forEach(item => {
+      const status = item.Status;
+      if (status) {
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      }
+    });
+    
+    const total = filteredData.length;
+    
+    return Object.entries(statusCounts)
+      .map(([status, quantidade]) => ({
+        status,
+        quantidade,
+        percentage: total > 0 ? Math.round((quantidade / total) * 100 * 100) / 100 : 0
+      }))
+      .sort((a, b) => b.quantidade - a.quantidade);
+  }, [filteredData]);
+
+  // Calculate state distribution
+  const stateDistribution: StateDistribution[] = useMemo(() => {
+    const stateCounts: { [key: string]: number } = {};
+    
+    filteredData.forEach(item => {
+      const state = item["UF Posto"] || item["UF Cons"];
+      if (state) {
+        stateCounts[state] = (stateCounts[state] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(stateCounts)
+      .map(([estado, quantidade]) => ({ estado, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade);
+  }, [filteredData]);
+
+  // Get unique values for filters
+  const filterOptions = useMemo(() => {
+    const productFamilies = [...new Set(data.map(item => item["Família Prod"]).filter(Boolean))];
+    const statuses = [...new Set(data.map(item => item.Status).filter(Boolean))];
+    const states = [...new Set([
+      ...data.map(item => item["UF Posto"]).filter(Boolean),
+      ...data.map(item => item["UF Cons"]).filter(Boolean)
+    ])];
+    
+    return {
+      productFamilies: productFamilies.sort(),
+      statuses: statuses.sort(),
+      states: states.sort()
+    };
+  }, [data]);
+
+  return {
+    data: filteredData,
+    loading,
+    error,
+    filters,
+    setFilters,
+    kpiData,
+    productRanking,
+    defectRanking,
+    monthlyTrends,
+    statusDistribution,
+    stateDistribution,
+    filterOptions
+  };
+};
