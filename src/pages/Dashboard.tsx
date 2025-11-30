@@ -11,7 +11,11 @@ import { AIInsights } from "@/components/dashboard/AIInsights";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+import { ServiceOrderModal } from "@/components/dashboard/ServiceOrderModal";
+import { useState } from "react";
+
 const Dashboard = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const {
     loading,
     error,
@@ -24,7 +28,8 @@ const Dashboard = () => {
     statusDistribution,
     cityDistribution,
     authorizedDistribution,
-    filterOptions
+    filterOptions,
+    data: filteredData
   } = useDashboardData();
 
   if (loading) {
@@ -61,7 +66,7 @@ const Dashboard = () => {
       </div>
 
       {/* Filters */}
-      <FilterBar 
+      <FilterBar
         filters={filters}
         onFiltersChange={setFilters}
         filterOptions={filterOptions}
@@ -75,6 +80,7 @@ const Dashboard = () => {
           subtitle="OSs registradas no período"
           icon={FileText}
           variant="primary"
+          onDetailClick={() => setIsModalOpen(true)}
         />
         <KPICard
           title="Tempo Médio de Atendimento"
@@ -82,6 +88,7 @@ const Dashboard = () => {
           subtitle="Para OSs em garantia"
           icon={Clock}
           variant="secondary"
+          onDetailClick={() => setIsModalOpen(true)}
         />
         <KPICard
           title="Tempo Médio de Vida do Produto"
@@ -89,6 +96,7 @@ const Dashboard = () => {
           subtitle="Da fabricação até a OS"
           icon={Calendar}
           variant="accent"
+          onDetailClick={() => setIsModalOpen(true)}
         />
         <KPICard
           title="OSs em Garantia"
@@ -96,6 +104,7 @@ const Dashboard = () => {
           subtitle="Percentual do total"
           icon={Shield}
           variant="success"
+          onDetailClick={() => setIsModalOpen(true)}
         />
       </div>
 
@@ -103,24 +112,47 @@ const Dashboard = () => {
       <div className="space-y-6 animate-scale-in">
         {/* Product and Defect Analysis */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ProductChart data={productRanking} />
-          <DefectChart data={defectRanking} />
+          <ProductChart
+            data={productRanking}
+            onFilterClick={(value) => setFilters(prev => ({ ...prev, product: prev.product === value ? undefined : value }))}
+            onDetailClick={() => setIsModalOpen(true)}
+          />
+          <DefectChart
+            data={defectRanking}
+            onFilterClick={(value) => setFilters(prev => ({ ...prev, defect: prev.defect === value ? undefined : value }))}
+            onDetailClick={() => setIsModalOpen(true)}
+          />
         </div>
 
         {/* Trends and Status */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TrendChart data={monthlyTrends} />
-          <StatusChart data={statusDistribution} />
+          <TrendChart
+            data={monthlyTrends}
+            onDetailClick={() => setIsModalOpen(true)}
+          />
+          <StatusChart
+            data={statusDistribution}
+            onFilterClick={(value) => setFilters(prev => ({ ...prev, status: prev.status === value ? '' : value }))}
+            onDetailClick={() => setIsModalOpen(true)}
+          />
         </div>
 
         {/* Geographic and Authorized Analysis */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <CityChart data={cityDistribution} />
-          <AuthorizedChart data={authorizedDistribution} />
+          <CityChart
+            data={cityDistribution}
+            onFilterClick={(value) => setFilters(prev => ({ ...prev, city: prev.city === value ? undefined : value }))}
+            onDetailClick={() => setIsModalOpen(true)}
+          />
+          <AuthorizedChart
+            data={authorizedDistribution}
+            onFilterClick={(value) => setFilters(prev => ({ ...prev, authorized: prev.authorized === value ? undefined : value }))}
+            onDetailClick={() => setIsModalOpen(true)}
+          />
         </div>
 
         {/* AI Insights */}
-        <AIInsights 
+        <AIInsights
           kpiData={kpiData}
           productRanking={productRanking}
           defectRanking={defectRanking}
@@ -135,6 +167,12 @@ const Dashboard = () => {
           <span>Dashboard atualizado em tempo real</span>
         </div>
       </div>
+
+      <ServiceOrderModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        data={filteredData}
+      />
     </div>
   );
 };

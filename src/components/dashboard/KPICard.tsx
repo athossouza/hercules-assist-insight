@@ -1,6 +1,7 @@
-import { Card } from "@/components/ui/card";
-import { LucideIcon } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LucideIcon, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface KPICardProps {
   title: string;
@@ -11,63 +12,77 @@ interface KPICardProps {
     value: number;
     isPositive: boolean;
   };
-  variant?: 'primary' | 'secondary' | 'accent' | 'success';
+  variant?: 'default' | 'primary' | 'secondary' | 'accent' | 'success';
   className?: string;
+  onDetailClick?: () => void;
 }
 
-export const KPICard = ({ 
-  title, 
-  value, 
-  subtitle, 
-  icon: Icon, 
-  trend, 
+export const KPICard = ({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
   variant = 'primary',
-  className 
+  className,
+  onDetailClick
 }: KPICardProps) => {
-  const variantStyles = {
-    primary: 'bg-gradient-primary text-primary-foreground',
-    secondary: 'bg-gradient-secondary text-secondary-foreground',
-    accent: 'bg-gradient-accent text-accent-foreground',
-    success: 'bg-success text-success-foreground'
+  const variants = {
+    default: 'bg-muted',
+    primary: 'bg-primary',
+    secondary: 'bg-secondary',
+    accent: 'bg-accent',
+    success: 'bg-success'
+  };
+
+  const iconVariants = {
+    default: 'text-muted-foreground',
+    primary: 'text-primary-foreground',
+    secondary: 'text-secondary-foreground',
+    accent: 'text-accent-foreground',
+    success: 'text-success-foreground'
   };
 
   return (
-    <Card className={cn(
-      "kpi-card p-6 border-0 shadow-lg",
-      variantStyles[variant],
-      className
-    )}>
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-sm font-medium opacity-90">
-            {title}
-          </p>
-          <div className="space-y-1">
-            <p className="text-3xl font-bold tracking-tight">
-              {typeof value === 'number' ? value.toLocaleString('pt-BR') : value}
-            </p>
-            {subtitle && (
-              <p className="text-sm opacity-75">
-                {subtitle}
-              </p>
-            )}
+    <Card className={cn("overflow-hidden transition-all duration-300 hover:shadow-lg", className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {title}
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          {onDetailClick && (
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDetailClick} title="Detalhar">
+              <Maximize2 className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          )}
+          <div className={cn("p-2 rounded-full bg-opacity-10", variants[variant])}>
+            <Icon className={cn("h-4 w-4", iconVariants[variant])} />
           </div>
-          {trend && (
-            <div className={cn(
-              "flex items-center text-xs font-medium",
-              trend.isPositive ? "text-success" : "text-destructive"
-            )}>
-              <span className="mr-1">
-                {trend.isPositive ? "↗" : "↘"}
-              </span>
-              {Math.abs(trend.value)}%
-            </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-1">
+          <p className="text-2xl font-bold">
+            {typeof value === 'number' ? value.toLocaleString('pt-BR') : value}
+          </p>
+          {subtitle && (
+            <p className="text-xs text-muted-foreground">
+              {subtitle}
+            </p>
           )}
         </div>
-        <div className="p-3 bg-white/20 rounded-lg">
-          <Icon className="h-6 w-6" />
-        </div>
-      </div>
+        {trend && (
+          <div className={cn(
+            "flex items-center text-xs font-medium mt-2",
+            trend.isPositive ? "text-success" : "text-destructive"
+          )}>
+            <span className="mr-1">
+              {trend.isPositive ? "↗" : "↘"}
+            </span>
+            {Math.abs(trend.value)}%
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 };

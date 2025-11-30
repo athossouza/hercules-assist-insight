@@ -1,24 +1,28 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { ChartCard } from './ChartCard';
 import { AuthorizedDistribution } from '@/types/dashboard';
 
 interface AuthorizedChartProps {
   data: AuthorizedDistribution[];
+  onFilterClick?: (value: string) => void;
+  onDetailClick?: () => void;
 }
 
-export const AuthorizedChart = ({ data }: AuthorizedChartProps) => {
+export const AuthorizedChart = ({ data, onFilterClick, onDetailClick }: AuthorizedChartProps) => {
   // Show top 10 authorized services
   const chartData = data.slice(0, 10).map(item => ({
     ...item,
-    autorizada: item.autorizada.length > 20 
-      ? item.autorizada.substring(0, 20) + '...' 
-      : item.autorizada
+    autorizada: item.autorizada.length > 20
+      ? item.autorizada.substring(0, 20) + '...'
+      : item.autorizada,
+    fullAutorizada: item.autorizada
   }));
 
   return (
     <ChartCard
       title="Distribuição de OSs por Autorizada"
       description="Quantidade de Ordens de Serviço por empresa autorizada"
+      onDetailClick={onDetailClick}
     >
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -32,8 +36,8 @@ export const AuthorizedChart = ({ data }: AuthorizedChartProps) => {
             }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis 
-              dataKey="autorizada" 
+            <XAxis
+              dataKey="autorizada"
               stroke="hsl(var(--muted-foreground))"
               fontSize={10}
               angle={-45}
@@ -41,7 +45,7 @@ export const AuthorizedChart = ({ data }: AuthorizedChartProps) => {
               height={100}
             />
             <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <Tooltip 
+            <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
@@ -50,12 +54,16 @@ export const AuthorizedChart = ({ data }: AuthorizedChartProps) => {
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
             />
-            <Bar 
-              dataKey="quantidade" 
-              fill="hsl(var(--chart-3))" 
+            <Bar
+              dataKey="quantidade"
+              fill="hsl(var(--chart-3))"
               radius={[4, 4, 0, 0]}
               name="Quantidade de OSs"
-            />
+              onClick={(data) => onFilterClick && onFilterClick(data.fullAutorizada)}
+              cursor="pointer"
+            >
+              <LabelList dataKey="quantidade" position="top" fontSize={12} fill="hsl(var(--foreground))" />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

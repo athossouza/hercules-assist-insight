@@ -1,4 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Maximize2 } from "lucide-react";
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -7,15 +9,17 @@ interface ChartCardProps {
   description?: string;
   children: ReactNode;
   className?: string;
+  onDetailClick?: () => void;
   headerActions?: ReactNode;
 }
 
-export const ChartCard = ({ 
-  title, 
-  description, 
-  children, 
+export const ChartCard = ({
+  title,
+  description,
+  children,
   className,
-  headerActions 
+  onDetailClick,
+  headerActions
 }: ChartCardProps) => {
   return (
     <Card className={cn(
@@ -34,11 +38,14 @@ export const ChartCard = ({
               </p>
             )}
           </div>
-          {headerActions && (
-            <div className="flex items-center space-x-2">
-              {headerActions}
-            </div>
-          )}
+          <div className="flex items-center space-x-2 relative z-10">
+            {onDetailClick && (
+              <Button variant="ghost" size="icon" onClick={onDetailClick} title="Detalhar">
+                <Maximize2 className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
+            {headerActions}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">

@@ -104,4 +104,8 @@ export interface DashboardFilters {
   productFamily: string;
   status: string;
   state: string;
+  product?: string;
+  defect?: string;
+  city?: string;
+  authorized?: string;
 }

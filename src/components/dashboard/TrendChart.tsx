@@ -4,14 +4,15 @@ import { MonthlyTrend } from '@/types/dashboard';
 
 interface TrendChartProps {
   data: MonthlyTrend[];
+  onDetailClick?: () => void;
 }
 
-export const TrendChart = ({ data }: TrendChartProps) => {
+export const TrendChart = ({ data, onDetailClick }: TrendChartProps) => {
   const chartData = data.map(item => ({
     ...item,
-    monthFormatted: new Date(item.month + '-01').toLocaleDateString('pt-BR', { 
-      year: 'numeric', 
-      month: 'short' 
+    monthFormatted: new Date(item.month + '-01').toLocaleDateString('pt-BR', {
+      year: 'numeric',
+      month: 'short'
     })
   }));
 
@@ -32,13 +33,13 @@ export const TrendChart = ({ data }: TrendChartProps) => {
             }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis 
-              dataKey="monthFormatted" 
+            <XAxis
+              dataKey="monthFormatted"
               stroke="hsl(var(--muted-foreground))"
               fontSize={12}
             />
             <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <Tooltip 
+            <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
@@ -47,10 +48,10 @@ export const TrendChart = ({ data }: TrendChartProps) => {
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
             />
-            <Line 
-              type="monotone" 
-              dataKey="quantidade" 
-              stroke="hsl(var(--chart-3))" 
+            <Line
+              type="monotone"
+              dataKey="quantidade"
+              stroke="hsl(var(--chart-3))"
               strokeWidth={3}
               dot={{ fill: 'hsl(var(--chart-3))', strokeWidth: 2, r: 6 }}
               activeDot={{ r: 8, stroke: 'hsl(var(--chart-3))', strokeWidth: 2 }}
