@@ -10,8 +10,7 @@ export interface ServiceOrder {
   "Razão Social Posto": string;
   "Cidade Posto": string;
   "UF Posto": string;
-  "CPF/CNPJ Consum": string;
-  Consumidor: string;
+  "Consumidor": string;
   "Cidade Cons": string;
   "UF Cons": string;
   Telefone: string;
@@ -56,6 +55,7 @@ export interface ServiceOrder {
   "Nº do Extrato": string;
   "Status da Extrato": string;
   "Data de Pagamento": string;
+  relatedItems?: ServiceOrder[];
 }
 
 export interface KPIData {
@@ -108,4 +108,6 @@ export interface DashboardFilters {
   defect?: string;
   city?: string;
   authorized?: string;
+  customer?: string;
+  reseller?: string;
 }

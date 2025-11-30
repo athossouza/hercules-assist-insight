@@ -73,11 +73,23 @@ export const ServiceOrderModal = ({
                                 <TableRow key={index}>
                                     <TableCell className="font-medium">{order.OS}</TableCell>
                                     <TableCell>{order["Data Abertura"]?.split(' ')[0]}</TableCell>
-                                    <TableCell className="max-w-[200px] truncate" title={order["Desc Produto"]}>
-                                        {order["Desc Produto"]}
+                                    <TableCell className="max-w-[200px]" title={order.relatedItems?.map(i => i["Desc Produto"]).join(", ") || order["Desc Produto"]}>
+                                        <div className="flex flex-col gap-1">
+                                            {Array.from(new Set(order.relatedItems?.map(i => i["Desc Produto"]) || [order["Desc Produto"]])).map((prod, i) => (
+                                                <span key={i} className="truncate block text-xs border-b last:border-0 pb-1 last:pb-0">
+                                                    {prod}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </TableCell>
-                                    <TableCell className="max-w-[200px] truncate" title={order["Defeito Constatado"]}>
-                                        {order["Defeito Constatado"]}
+                                    <TableCell className="max-w-[200px]" title={order.relatedItems?.map(i => i["Defeito Constatado"]).join(", ") || order["Defeito Constatado"]}>
+                                        <div className="flex flex-col gap-1">
+                                            {Array.from(new Set(order.relatedItems?.map(i => i["Defeito Constatado"]) || [order["Defeito Constatado"]])).map((def, i) => (
+                                                <span key={i} className="truncate block text-xs border-b last:border-0 pb-1 last:pb-0">
+                                                    {def}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </TableCell>
                                     <TableCell>{order.Status}</TableCell>
                                     <TableCell>{order.Finalidade}</TableCell>

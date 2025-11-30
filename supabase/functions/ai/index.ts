@@ -40,16 +40,16 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-				
-				model: "google/gemini-2.5-pro",
-				
+
+        model: "google/gemini-1.5-flash",
+
         messages: [
-					
+
           {
             role: "system",
             content: "Você é um especialista em análise de dados de assistência técnica industrial. Analise os dados fornecidos e forneça insights estratégicos para melhorar operações, reduzir custos e otimizar a qualidade do produto.",
           },
-					
+
           {
             role: "user",
             content: message,
@@ -60,13 +60,13 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error("AI Gateway error:", await response.text());
-			if (response.status === 429) {
-				console.error("Rate limit exceeded");
-				return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-					status: 429,
-					headers: { ...corsHeaders, "Content-Type": "application/json" },
-				});
-			}
+      if (response.status === 429) {
+        console.error("Rate limit exceeded");
+        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       return new Response(JSON.stringify({ error: "Failed to get AI response" }), {
         status: 500,

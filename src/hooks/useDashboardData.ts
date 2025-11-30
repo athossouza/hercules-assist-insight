@@ -67,7 +67,35 @@ export const useDashboardData = () => {
           parsedData.push(row as ServiceOrder);
         }
 
-        setData(parsedData);
+        // Deduplicate data based on "Número OS" (or "OS")
+        // We aggregate all items into the 'relatedItems' property of the main entry
+        const uniqueMap = new Map<string, ServiceOrder>();
+        const itemsMap = new Map<string, ServiceOrder[]>();
+
+        parsedData.forEach(item => {
+          const id = item["Número OS"] || item["OS"];
+          if (id) {
+            // Store all items for this ID
+            if (!itemsMap.has(id)) {
+              itemsMap.set(id, []);
+            }
+            itemsMap.get(id)?.push(item);
+
+            // Keep the last item as the main one (for status, dates, etc.)
+            uniqueMap.set(id, item);
+          }
+        });
+
+        // Attach related items to the main object
+        const uniqueData = Array.from(uniqueMap.values()).map(item => {
+          const id = item["Número OS"] || item["OS"];
+          return {
+            ...item,
+            relatedItems: itemsMap.get(id) || [item]
+          };
+        });
+
+        setData(uniqueData);
       } catch (err) {
         setError('Erro ao carregar dados: ' + (err as Error).message);
       } finally {
@@ -125,6 +153,16 @@ export const useDashboardData = () => {
         return false;
       }
 
+      // Customer filter
+      if (filters.customer && item["Consumidor"] !== filters.customer) {
+        return false;
+      }
+
+      // Reseller filter
+      if (filters.reseller && item["Revendedor"] !== filters.reseller) {
+        return false;
+      }
+
       return true;
     });
   }, [data, filters]);
@@ -133,18 +171,22 @@ export const useDashboardData = () => {
   const kpiData: KPIData = useMemo(() => {
     const totalOrders = filteredData.length;
 
-    // Calculate average service time for warranty orders
-    const warrantyOrders = filteredData.filter(item => item.Finalidade === 'Garantia');
+    // Calculate average service time for ALL filtered orders (not just warranty)
+    // This ensures the KPI reflects the current filters (e.g., specific customer, product, etc.)
     let totalServiceDays = 0;
     let validServiceTimeCount = 0;
 
-    warrantyOrders.forEach(item => {
+    filteredData.forEach(item => {
       const openDate = parseDate(item["Data Abertura"]);
       const closeDate = parseDate(item["Data Fechamento"]);
 
       if (openDate && closeDate) {
-        totalServiceDays += calculateDaysDifference(openDate, closeDate);
-        validServiceTimeCount++;
+        const days = calculateDaysDifference(openDate, closeDate);
+        // Ensure non-negative and reasonable values
+        if (days >= 0) {
+          totalServiceDays += days;
+          validServiceTimeCount++;
+        }
       }
     });
 
@@ -291,11 +333,15 @@ export const useDashboardData = () => {
       ...data.map(item => item["UF Posto"]).filter(Boolean),
       ...data.map(item => item["UF Cons"]).filter(Boolean)
     ])];
+    const customers = [...new Set(data.map(item => item["Consumidor"]).filter(Boolean))];
+    const resellers = [...new Set(data.map(item => item["Revendedor"]).filter(Boolean))];
 
     return {
       productFamilies: productFamilies.sort(),
       statuses: statuses.sort(),
-      states: states.sort()
+      states: states.sort(),
+      customers: customers.sort(),
+      resellers: resellers.sort()
     };
   }, [data]);
 
