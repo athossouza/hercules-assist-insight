@@ -78,7 +78,17 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
             const rawRows = await response.json();
 
             if (rawRows && Array.isArray(rawRows)) {
-                const processedData = processData(rawRows);
+                // Normalize data: ensure all fields are strings to prevent .trim() errors
+                const normalizedRows = rawRows.map(row => {
+                    const newRow: any = {};
+                    Object.keys(row).forEach(key => {
+                        const val = row[key];
+                        newRow[key] = val !== undefined && val !== null ? String(val) : "";
+                    });
+                    return newRow;
+                });
+
+                const processedData = processData(normalizedRows);
                 setData(processedData);
 
                 // Set metadata if we have data (simplified for now as API doesn't return metadata yet)
