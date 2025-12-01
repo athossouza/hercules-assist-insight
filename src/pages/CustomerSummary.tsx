@@ -57,15 +57,33 @@ const CustomerSummary = () => {
             return !status.includes("finalizad") && !status.includes("cancelad");
         }).length;
 
+        // Helper to parse date (handles Excel serial numbers)
+        const parseDate = (dateStr: string): Date | null => {
+            if (!dateStr || dateStr.trim() === '') return null;
+
+            if (/^\d+(\.\d+)?$/.test(dateStr)) {
+                const serial = parseFloat(dateStr);
+                const utc_days = Math.floor(serial - 25569);
+                const utc_value = utc_days * 86400;
+                const date_info = new Date(utc_value * 1000);
+                return new Date(date_info.getUTCFullYear(), date_info.getUTCMonth(), date_info.getUTCDate());
+            }
+
+            const cleanDateStr = dateStr.split('  ')[0];
+            const [day, month, year] = cleanDateStr.split('/');
+            if (!day || !month || !year) return null;
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        };
+
         // Sort by date to find last visit
         const sortedByDate = [...customerData].sort((a, b) => {
-            const dateA = new Date(a["Data Abertura"].split('/').reverse().join('-'));
-            const dateB = new Date(b["Data Abertura"].split('/').reverse().join('-'));
+            const dateA = parseDate(a["Data Abertura"]) || new Date(0);
+            const dateB = parseDate(b["Data Abertura"]) || new Date(0);
             return dateB.getTime() - dateA.getTime();
         });
 
-        // Format date to remove time (dd/mm/yyyy)
-        const lastVisit = sortedByDate[0]["Data Abertura"].substring(0, 10);
+        const lastVisitDate = parseDate(sortedByDate[0]["Data Abertura"]);
+        const lastVisit = lastVisitDate ? format(lastVisitDate, "dd/MM/yyyy") : "N/A";
         const mainAuthorized = sortedByDate[0]["Razão Social Posto"]; // Most recent authorized center
 
         return {
