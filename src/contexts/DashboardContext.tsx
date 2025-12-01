@@ -139,6 +139,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
                         filename: metadata.filename,
                         date: new Date(metadata.date)
                     };
+                    // Always update state and cache if metadata is present
                     setImportMetadata(newMeta);
                     localStorage.setItem('dashboardMetadata', JSON.stringify(metadata));
                 } else if (processedData.length > 0 && !importMetadata) {
@@ -148,6 +149,13 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
                         date: new Date()
                     };
                     setImportMetadata(fallbackMeta);
+                } else if (!metadata && importMetadata) {
+                    // If API returns no metadata (e.g. cleared), but we have local metadata, 
+                    // we might want to keep it OR clear it. 
+                    // But since we just fetched fresh data, if metadata is missing, it implies no import.
+                    // However, our backend returns null if no import.
+                    // So if metadata is null, we should probably clear it?
+                    // But let's be safe and keep it if we have data.
                 }
             }
 
