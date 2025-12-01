@@ -154,6 +154,8 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
             await tx.serviceOrder.createMany({
                 data: serviceOrders
             });
+        }, {
+            timeout: 60000 // Increase timeout to 60 seconds
         });
 
         res.json({ message: 'Upload successful', count: jsonData.length });
