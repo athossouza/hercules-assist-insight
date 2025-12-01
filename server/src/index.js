@@ -47,19 +47,23 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// Create initial user if not exists (for demo/setup)
+// Create initial user if not exists
 const createInitialUser = async () => {
-    const count = await prisma.user.count();
-    if (count === 0) {
-        const hashedPassword = await bcrypt.hash('admin123', 10);
+    const email = 'hercules@atveza.com';
+    const password = 'Hercules@Sucesso#2026';
+
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+        const hashedPassword = await bcrypt.hash(password, 10);
         await prisma.user.create({
             data: {
-                email: 'admin@hercules.com',
+                email,
                 password: hashedPassword,
                 name: 'Admin'
             }
         });
-        console.log('Created initial admin user: admin@hercules.com / admin123');
+        console.log(`Created admin user: ${email}`);
     }
 };
 
