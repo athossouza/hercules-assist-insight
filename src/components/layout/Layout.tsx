@@ -5,9 +5,21 @@ import { DataImporter } from "../dashboard/DataImporter";
 import { useDashboardContext } from "@/contexts/DashboardContext";
 import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { User, LogOut } from "lucide-react";
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
     const { loading, user } = useDashboardContext();
+    const { signOut } = useAuth();
     const [progress, setProgress] = useState(0);
 
     // Simulate progress when loading
@@ -41,11 +53,30 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                         <span className="font-semibold">Hercules Motores</span>
                     </div>
                     <div className="flex items-center gap-4">
-                        {/* Show current user email for debugging/clarity */}
-                        <div className="text-xs text-muted-foreground hidden md:flex flex-col items-end">
-                            {user && <span>{user.email}</span>}
-                        </div>
                         <DataImporter />
+
+                        {user && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 bg-muted">
+                                        <User className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel className="font-normal">
+                                        <div className="flex flex-col space-y-1">
+                                            <p className="text-sm font-medium leading-none">{user.name || 'Usuário'}</p>
+                                            <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                                        </div>
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={signOut} className="text-red-600 cursor-pointer">
+                                        <LogOut className="mr-2 h-4 w-4" />
+                                        <span>Sair</span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
                     </div>
 
                     {/* Global Progress Bar */}
