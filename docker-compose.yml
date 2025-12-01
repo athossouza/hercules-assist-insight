@@ -18,6 +18,7 @@ services:
       - "traefik.http.routers.hercules.entrypoints=websecure"
       - "traefik.http.routers.hercules.tls.certresolver=mytlschallenge"
       - "traefik.http.services.hercules.loadbalancer.server.port=80"
+      - "traefik.docker.network=root_default"
 
 networks:
   root_default:
