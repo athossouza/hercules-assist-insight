@@ -18,6 +18,18 @@ import { ptBR } from 'date-fns/locale';
 const parseDate = (dateStr: string): Date | null => {
   if (!dateStr || dateStr.trim() === '') return null;
 
+  // Check if it's an Excel serial number (numeric string)
+  // Excel dates are often integers (days since 1899-12-30)
+  if (/^\d+(\.\d+)?$/.test(dateStr)) {
+    const serial = parseFloat(dateStr);
+    // Excel base date adjustment (25569 days offset from 1970-01-01)
+    const utc_days = Math.floor(serial - 25569);
+    const utc_value = utc_days * 86400;
+    const date_info = new Date(utc_value * 1000);
+    // Return date object (ignoring time for simplicity in this context)
+    return new Date(date_info.getUTCFullYear(), date_info.getUTCMonth(), date_info.getUTCDate());
+  }
+
   // Handle format: "05/05/2025  16:59:43"
   const cleanDateStr = dateStr.split('  ')[0]; // Remove time part
   const [day, month, year] = cleanDateStr.split('/');

@@ -19,7 +19,7 @@ const items = [
     },
     {
         title: "Resumo do Cliente",
-        url: "/customer",
+        url: "/customers",
         icon: Users,
     },
 ];
