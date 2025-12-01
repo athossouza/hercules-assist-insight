@@ -2,11 +2,10 @@ import { useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, User, MapPin, Wrench, FileText, Brain, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, User, MapPin, Wrench, FileText, Brain, Loader2, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -14,6 +13,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
 
 const CustomerSummary = () => {
     const {
@@ -31,11 +38,13 @@ const CustomerSummary = () => {
 
     const [aiSummary, setAiSummary] = useState<string>("");
     const [loadingAi, setLoadingAi] = useState(false);
+    const [openReseller, setOpenReseller] = useState(false);
 
     // Filter data specifically for this view
     const customerData = useMemo(() => {
         if (!filters.reseller) return [];
-        return data.filter(item => item["Revendedor"] === filters.reseller);
+        // Use "Faturado Para" as per request, but filter name is still 'reseller'
+        return data.filter(item => item["Faturado Para"] === filters.reseller);
     }, [data, filters.reseller]);
 
     // Calculate Customer KPIs
@@ -133,26 +142,55 @@ const CustomerSummary = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                    <Select
-                        value={filters.reseller}
-                        onValueChange={(value) => {
-                            setFilters(prev => ({ ...prev, reseller: value }));
-                            setAiSummary(""); // Clear summary on customer change
-                        }}
-                    >
-                        <SelectTrigger className="w-full md:w-[300px]">
-                            <SelectValue placeholder="Selecione um revendedor..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <ScrollArea className="h-[200px]">
-                                {filterOptions.resellers?.map((reseller) => (
-                                    <SelectItem key={reseller} value={reseller}>
-                                        {reseller}
-                                    </SelectItem>
-                                ))}
-                            </ScrollArea>
-                        </SelectContent>
-                    </Select>
+                    <Popover open={openReseller} onOpenChange={setOpenReseller}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={openReseller}
+                                className="w-full md:w-[300px] justify-between"
+                            >
+                                <span className="truncate text-left">
+                                    {filters.reseller
+                                        ? filters.reseller
+                                        : "Selecione um revendedor..."}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0">
+                            <Command filter={(value, search) => {
+                                if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+                                return 0;
+                            }}>
+                                <CommandInput placeholder="Buscar revendedor..." />
+                                <CommandList>
+                                    <CommandEmpty>Nenhum revendedor encontrado.</CommandEmpty>
+                                    <CommandGroup>
+                                        {filterOptions.resellers?.map((reseller) => (
+                                            <CommandItem
+                                                key={reseller}
+                                                value={reseller}
+                                                onSelect={() => {
+                                                    setFilters(prev => ({ ...prev, reseller: reseller }));
+                                                    setAiSummary("");
+                                                    setOpenReseller(false);
+                                                }}
+                                            >
+                                                <Check
+                                                    className={cn(
+                                                        "mr-2 h-4 w-4",
+                                                        filters.reseller === reseller ? "opacity-100" : "opacity-0"
+                                                    )}
+                                                />
+                                                {reseller}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
 
                     <Popover>
                         <PopoverTrigger asChild>
@@ -309,9 +347,13 @@ const CustomerSummary = () => {
                                                         </Badge>
                                                     </div>
                                                     <div className="text-sm text-muted-foreground">
-                                                        {Array.from(new Set(os.relatedItems?.map(i => i["Desc Produto"]) || [os["Desc Produto"]])).map((prod, i) => (
+                                                        {Array.from(new Set(os.relatedItems?.map(i => {
+                                                            const code = i["Peças Trocadas"];
+                                                            const desc = i["Descrição Peça"];
+                                                            return code ? `${code} - ${desc}` : desc;
+                                                        }).filter(Boolean) || [])).map((part, i) => (
                                                             <div key={i} className="truncate border-b last:border-0 pb-1 last:pb-0 mb-1 last:mb-0">
-                                                                {prod}
+                                                                {part}
                                                             </div>
                                                         ))}
                                                     </div>

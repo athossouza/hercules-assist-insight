@@ -4,6 +4,28 @@
 
 **URL**: https://lovable.dev/projects/c38c438b-655a-4a93-bf0c-4e0dfadea384
 
+## 🚀 Como rodar o projeto
+
+Se você reiniciou o computador ou está rodando pela primeira vez, siga estes passos:
+
+1.  **Abra o terminal** na pasta do projeto:
+    ```bash
+    cd /Users/athos/Documents/projetosDev/dashboardHerculesv2
+    ```
+
+2.  **Instale as dependências** (caso ainda não tenha feito):
+    ```bash
+    npm install
+    ```
+
+3.  **Inicie o servidor de desenvolvimento**:
+    ```bash
+    npm run dev
+    ```
+
+4.  **Acesse no navegador**:
+    O terminal mostrará o link, geralmente http://localhost:8080.
+
 ## How can I edit this code?
 
 There are several ways of editing your application.

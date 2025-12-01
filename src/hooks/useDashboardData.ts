@@ -8,8 +8,12 @@ import {
   StatusDistribution,
   CityDistribution,
   AuthorizedDistribution,
-  DashboardFilters
+  DashboardFilters,
+  ServiceTimeTrend
 } from '@/types/dashboard';
+import { useDashboardContext } from '@/contexts/DashboardContext';
+import { differenceInDays, format, getWeek, startOfWeek, endOfWeek } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const parseDate = (dateStr: string): Date | null => {
   if (!dateStr || dateStr.trim() === '') return null;
@@ -30,81 +34,15 @@ const calculateDaysDifference = (startDate: Date | null, endDate: Date | null): 
 };
 
 export const useDashboardData = () => {
-  const [data, setData] = useState<ServiceOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loading, error, importMetadata, importData } = useDashboardContext();
+
   const [filters, setFilters] = useState<DashboardFilters>({
     dateRange: { start: null, end: null },
     productFamily: '',
     status: '',
-    state: ''
+    state: '',
+    part: ''
   });
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/data/ATwebReport.csv');
-        const csvText = await response.text();
-
-        // Parse CSV
-        const lines = csvText.split('\n');
-        const headers = lines[0].split(';').map(header => header.replace('﻿', '').trim());
-
-        const parsedData: ServiceOrder[] = [];
-
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
-
-          const values = line.split(';');
-          const row: any = {};
-
-          headers.forEach((header, index) => {
-            row[header] = values[index] || '';
-          });
-
-          parsedData.push(row as ServiceOrder);
-        }
-
-        // Deduplicate data based on "Número OS" (or "OS")
-        // We aggregate all items into the 'relatedItems' property of the main entry
-        const uniqueMap = new Map<string, ServiceOrder>();
-        const itemsMap = new Map<string, ServiceOrder[]>();
-
-        parsedData.forEach(item => {
-          const id = item["Número OS"] || item["OS"];
-          if (id) {
-            // Store all items for this ID
-            if (!itemsMap.has(id)) {
-              itemsMap.set(id, []);
-            }
-            itemsMap.get(id)?.push(item);
-
-            // Keep the last item as the main one (for status, dates, etc.)
-            uniqueMap.set(id, item);
-          }
-        });
-
-        // Attach related items to the main object
-        const uniqueData = Array.from(uniqueMap.values()).map(item => {
-          const id = item["Número OS"] || item["OS"];
-          return {
-            ...item,
-            relatedItems: itemsMap.get(id) || [item]
-          };
-        });
-
-        setData(uniqueData);
-      } catch (err) {
-        setError('Erro ao carregar dados: ' + (err as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
 
   // Filter data based on current filters
   const filteredData = useMemo(() => {
@@ -138,6 +76,19 @@ export const useDashboardData = () => {
         return false;
       }
 
+      // Part filter (interactive)
+      if (filters.part) {
+        const items = item.relatedItems || [item];
+        const hasPart = items.some(subItem => {
+          const partCode = subItem["Peças Trocadas"];
+          const partDesc = subItem["Descrição Peça"];
+          if (!partDesc) return false;
+          const label = partCode ? `${partCode} - ${partDesc}` : partDesc;
+          return label === filters.part;
+        });
+        if (!hasPart) return false;
+      }
+
       // Defect filter (interactive)
       if (filters.defect && item["Defeito Constatado"] !== filters.defect) {
         return false;
@@ -158,8 +109,8 @@ export const useDashboardData = () => {
         return false;
       }
 
-      // Reseller filter
-      if (filters.reseller && item["Revendedor"] !== filters.reseller) {
+      // Reseller filter (uses "Faturado Para" as requested)
+      if (filters.reseller && item["Faturado Para"] !== filters.reseller) {
         return false;
       }
 
@@ -220,22 +171,112 @@ export const useDashboardData = () => {
     };
   }, [filteredData]);
 
-  // Calculate product ranking
+  // Calculate service time trends (Average Service Time History)
+  const serviceTimeTrends: ServiceTimeTrend[] = useMemo(() => {
+    const timeData: { [key: string]: { totalDays: number; count: number; date: Date } } = {};
+
+    // Determine if we should use weekly or monthly granularity
+    let isWeekly = false;
+    if (filters.dateRange.start && filters.dateRange.end) {
+      const daysDiff = differenceInDays(filters.dateRange.end, filters.dateRange.start);
+      isWeekly = daysDiff <= 90; // Use weekly if range is 3 months or less
+    }
+
+    filteredData.forEach(item => {
+      const openDate = parseDate(item["Data Abertura"]);
+      const closeDate = parseDate(item["Data Fechamento"]);
+
+      if (openDate && closeDate) {
+        const days = calculateDaysDifference(openDate, closeDate);
+        if (days >= 0) {
+          let key = "";
+          if (isWeekly) {
+            // Weekly key: "YYYY-Www"
+            const week = getWeek(openDate);
+            const year = openDate.getFullYear();
+            key = `${year}-W${String(week).padStart(2, '0')}`;
+          } else {
+            // Monthly key: "YYYY-MM"
+            key = `${openDate.getFullYear()}-${String(openDate.getMonth() + 1).padStart(2, '0')}`;
+          }
+
+          if (!timeData[key]) {
+            timeData[key] = { totalDays: 0, count: 0, date: openDate };
+          }
+          timeData[key].totalDays += days;
+          timeData[key].count += 1;
+        }
+      }
+    });
+
+    return Object.entries(timeData)
+      .map(([key, data]) => {
+        let label = "";
+        if (isWeekly) {
+          // Format: "Semana X - Mês" or similar
+          // To make it user friendly, let's use the start of the week date
+          // But since we only have the key, let's use the stored sample date to format
+          // Or better, just format the key.
+          // Let's use the stored date to get the week label
+          const weekStart = startOfWeek(data.date, { weekStartsOn: 0 });
+          const weekEnd = endOfWeek(data.date, { weekStartsOn: 0 });
+          // Example: "01/10 - 07/10"
+          label = `${format(weekStart, 'dd/MM')} - ${format(weekEnd, 'dd/MM')}`;
+        } else {
+          // Format: "Mês/Ano"
+          const [year, month] = key.split('-');
+          const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+          label = format(date, 'MMM/yyyy', { locale: ptBR });
+          // Capitalize first letter
+          label = label.charAt(0).toUpperCase() + label.slice(1);
+        }
+
+        return {
+          period: label,
+          avgTime: Math.round(data.totalDays / data.count),
+          sortKey: key // Keep key for sorting
+        };
+      })
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+      .map(({ period, avgTime }) => ({ period, avgTime }));
+  }, [filteredData, filters.dateRange]);
+
+  // Calculate product ranking (Now Parts Ranking as per user request)
   const productRanking: ProductRanking[] = useMemo(() => {
     const productCounts: { [key: string]: number } = {};
 
     filteredData.forEach(item => {
-      const product = item["Desc Produto"];
-      if (product) {
-        productCounts[product] = (productCounts[product] || 0) + 1;
-      }
+      // Use relatedItems to get all parts if available, otherwise use the item itself
+      const items = item.relatedItems || [item];
+
+      items.forEach(subItem => {
+        const partCode = subItem["Peças Trocadas"];
+        const partDesc = subItem["Descrição Peça"];
+
+        if (partDesc && partDesc.trim() !== '') {
+          // Format: "Code - Description" or just "Description" if code is missing
+          const label = partCode ? `${partCode} - ${partDesc}` : partDesc;
+          productCounts[label] = (productCounts[label] || 0) + 1;
+        }
+      });
     });
 
-    return Object.entries(productCounts)
+    const ranking = Object.entries(productCounts)
       .map(([produto, quantidade]) => ({ produto, quantidade }))
       .sort((a, b) => b.quantidade - a.quantidade)
       .slice(0, 10);
-  }, [filteredData]);
+
+    // If a part filter is active, only show that part in the ranking
+    if (filters.part) {
+      return ranking.filter(item => {
+        // Check if the item matches the filter (Code - Description)
+        // The item.produto here IS the label constructed above
+        return item.produto === filters.part;
+      });
+    }
+
+    return ranking;
+  }, [filteredData, filters.part]);
 
   // Calculate defect ranking
   const defectRanking: DefectRanking[] = useMemo(() => {
@@ -327,6 +368,16 @@ export const useDashboardData = () => {
 
   // Get unique values for filters
   const filterOptions = useMemo(() => {
+    // Helper to filter by date range
+    const filterByDate = (item: ServiceOrder) => {
+      if (!filters.dateRange.start && !filters.dateRange.end) return true;
+      const itemDate = parseDate(item["Data Abertura"]);
+      if (!itemDate) return false;
+      if (filters.dateRange.start && itemDate < filters.dateRange.start) return false;
+      if (filters.dateRange.end && itemDate > filters.dateRange.end) return false;
+      return true;
+    };
+
     const productFamilies = [...new Set(data.map(item => item["Família Prod"]).filter(Boolean))];
     const statuses = [...new Set(data.map(item => item.Status).filter(Boolean))];
     const states = [...new Set([
@@ -334,7 +385,14 @@ export const useDashboardData = () => {
       ...data.map(item => item["UF Cons"]).filter(Boolean)
     ])];
     const customers = [...new Set(data.map(item => item["Consumidor"]).filter(Boolean))];
-    const resellers = [...new Set(data.map(item => item["Revendedor"]).filter(Boolean))];
+
+    // Resellers should be filtered by the selected date range
+    const resellers = [...new Set(
+      data
+        .filter(filterByDate)
+        .map(item => item["Faturado Para"])
+        .filter(Boolean)
+    )];
 
     return {
       productFamilies: productFamilies.sort(),
@@ -343,7 +401,7 @@ export const useDashboardData = () => {
       customers: customers.sort(),
       resellers: resellers.sort()
     };
-  }, [data]);
+  }, [data, filters.dateRange]);
 
   return {
     data: filteredData,
@@ -355,9 +413,12 @@ export const useDashboardData = () => {
     productRanking,
     defectRanking,
     monthlyTrends,
+    serviceTimeTrends,
     statusDistribution,
     cityDistribution,
     authorizedDistribution,
-    filterOptions
+    filterOptions,
+    importMetadata,
+    importData
   };
 };

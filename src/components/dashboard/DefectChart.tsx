@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Cell } from 'recharts';
 import { ChartCard } from './ChartCard';
 import { DefectRanking } from '@/types/dashboard';
 
@@ -6,9 +6,10 @@ interface DefectChartProps {
   data: DefectRanking[];
   onFilterClick?: (value: string) => void;
   onDetailClick?: () => void;
+  selectedDefect?: string;
 }
 
-export const DefectChart = ({ data, onFilterClick, onDetailClick }: DefectChartProps) => {
+export const DefectChart = ({ data, onFilterClick, onDetailClick, selectedDefect }: DefectChartProps) => {
   const chartData = data.slice(0, 8).map(item => ({
     ...item,
     defeito: item.defeito.length > 25 ? item.defeito.substring(0, 25) + '...' : item.defeito,
@@ -61,12 +62,18 @@ export const DefectChart = ({ data, onFilterClick, onDetailClick }: DefectChartP
             />
             <Bar
               dataKey="quantidade"
-              fill="hsl(var(--chart-2))"
               radius={[4, 4, 0, 0]}
               name="Quantidade de Ocorrências"
               onClick={(data) => onFilterClick && onFilterClick(data.defeitoCompleto)}
               cursor="pointer"
             >
+              {chartData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill="hsl(var(--chart-2))"
+                  opacity={selectedDefect && selectedDefect !== entry.defeitoCompleto ? 0.3 : 1}
+                />
+              ))}
               <LabelList dataKey="quantidade" position="top" fontSize={12} fill="hsl(var(--foreground))" />
             </Bar>
           </BarChart>

@@ -8,6 +8,7 @@ import { StatusChart } from "@/components/dashboard/StatusChart";
 import { CityChart } from "@/components/dashboard/CityChart";
 import { AuthorizedChart } from "@/components/dashboard/AuthorizedChart";
 import { AIInsights } from "@/components/dashboard/AIInsights";
+import { ServiceTimeChart } from "@/components/dashboard/ServiceTimeChart";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -25,6 +26,7 @@ const Dashboard = () => {
     productRanking,
     defectRanking,
     monthlyTrends,
+    serviceTimeTrends,
     statusDistribution,
     cityDistribution,
     authorizedDistribution,
@@ -114,7 +116,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ProductChart
             data={productRanking}
-            onFilterClick={(value) => setFilters(prev => ({ ...prev, product: prev.product === value ? undefined : value }))}
+            onFilterClick={(value) => setFilters(prev => ({ ...prev, part: prev.part === value ? undefined : value }))}
             onDetailClick={() => setIsModalOpen(true)}
           />
           <DefectChart
@@ -150,6 +152,12 @@ const Dashboard = () => {
             onDetailClick={() => setIsModalOpen(true)}
           />
         </div>
+
+        {/* Service Time History */}
+        <ServiceTimeChart
+          data={serviceTimeTrends}
+          onDetailClick={() => setIsModalOpen(true)}
+        />
 
         {/* AI Insights */}
         <AIInsights

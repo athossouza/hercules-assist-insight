@@ -110,4 +110,10 @@ export interface DashboardFilters {
   authorized?: string;
   customer?: string;
   reseller?: string;
+  part?: string;
+}
+
+export interface ServiceTimeTrend {
+  period: string;
+  avgTime: number;
 }

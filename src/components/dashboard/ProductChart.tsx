@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Cell } from 'recharts';
 import { ChartCard } from './ChartCard';
 import { ProductRanking } from '@/types/dashboard';
 
@@ -6,9 +6,10 @@ interface ProductChartProps {
   data: ProductRanking[];
   onFilterClick?: (value: string) => void;
   onDetailClick?: () => void;
+  selectedPart?: string;
 }
 
-export const ProductChart = ({ data, onFilterClick, onDetailClick }: ProductChartProps) => {
+export const ProductChart = ({ data, onFilterClick, onDetailClick, selectedPart }: ProductChartProps) => {
   const chartData = data.map(item => ({
     ...item,
     produto: item.produto.length > 30 ? item.produto.substring(0, 30) + '...' : item.produto,
@@ -17,8 +18,8 @@ export const ProductChart = ({ data, onFilterClick, onDetailClick }: ProductChar
 
   return (
     <ChartCard
-      title="Top 10 Produtos com Mais Ordens de Serviço"
-      description="Ranking dos produtos que mais geraram OSs"
+      title="Top 10 Peças Trocadas"
+      description="Ranking das peças mais substituídas em OSs"
       onDetailClick={onDetailClick}
     >
       <div className="h-80">
@@ -53,12 +54,18 @@ export const ProductChart = ({ data, onFilterClick, onDetailClick }: ProductChar
             />
             <Bar
               dataKey="quantidade"
-              fill="hsl(var(--chart-1))"
               radius={[4, 4, 0, 0]}
               name="Quantidade de OSs"
               onClick={(data) => onFilterClick && onFilterClick(data.fullProduto)}
               cursor="pointer"
             >
+              {chartData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill="hsl(var(--chart-1))"
+                  opacity={selectedPart && selectedPart !== entry.fullProduto ? 0.3 : 1}
+                />
+              ))}
               <LabelList dataKey="quantidade" position="top" fontSize={12} fill="hsl(var(--foreground))" />
             </Bar>
           </BarChart>
