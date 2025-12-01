@@ -58,8 +58,23 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
+        // Try to load from cache first
+        const cachedData = localStorage.getItem('dashboardData');
+        if (cachedData) {
+            try {
+                const parsedCache = JSON.parse(cachedData);
+                if (Array.isArray(parsedCache) && parsedCache.length > 0) {
+                    setData(parsedCache);
+                    setLoading(false); // Show cached data immediately
+                }
+            } catch (e) {
+                console.error("Error parsing cache", e);
+            }
+        }
+
         try {
-            setLoading(true);
+            // Don't set loading to true if we have cached data, to avoid flickering
+            if (!cachedData) setLoading(true);
 
             const response = await fetch('/api/orders', {
                 headers: {
@@ -89,7 +104,17 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
                 });
 
                 const processedData = processData(normalizedRows);
+
+                // Only update if data has changed (simple length check for now, or deep compare if needed)
+                // For performance, we'll just update it. React handles diffing.
                 setData(processedData);
+
+                // Update cache
+                try {
+                    localStorage.setItem('dashboardData', JSON.stringify(processedData));
+                } catch (e) {
+                    console.error("Failed to save to localStorage (quota exceeded?)", e);
+                }
 
                 // Set metadata if we have data (simplified for now as API doesn't return metadata yet)
                 if (processedData.length > 0) {
@@ -103,7 +128,10 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
         } catch (err: any) {
             console.error("Error loading data:", err);
             setError(err.message);
-            toast.error("Erro ao carregar dados do servidor.");
+            // Only show toast if we don't have cached data, to be less annoying
+            if (!data.length) {
+                toast.error("Erro ao carregar dados do servidor.");
+            }
         } finally {
             setLoading(false);
         }
