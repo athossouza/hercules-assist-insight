@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  dashboard-hercules:
+    build: .
+    container_name: dashboard-hercules
+    restart: always
+    ports:
+      - "8082:80"
+    environment:
+      - NODE_ENV=production
