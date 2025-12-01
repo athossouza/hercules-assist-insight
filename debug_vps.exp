@@ -1,0 +1,35 @@
+#!/usr/bin/expect
+
+set timeout 30
+set host "31.97.21.53"
+set user "root"
+set password "@Ahs221400#123"
+set dir "hercules-assist-insight"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    timeout {
+        exit 1
+    }
+}
+
+expect "#"
+
+# Check if directory exists
+send "ls -d $dir\r"
+expect "#"
+
+# Check if container is running
+send "docker ps -a | grep dashboard-hercules\r"
+expect "#"
+
+# Check if docker compose works
+send "docker compose version\r"
+expect "#"
+
+send "exit\r"
+expect eof

@@ -1,0 +1,48 @@
+#!/usr/bin/expect
+
+set timeout 120
+set host "31.97.21.53"
+set user "root"
+set password "@Ahs221400#123"
+set repo "https://github.com/athossouza/hercules-assist-insight.git"
+set dir "hercules-assist-insight"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    timeout {
+        puts "Connection timed out"
+        exit 1
+    }
+}
+
+expect "#"
+
+# Check Docker
+send "docker --version\r"
+expect "#"
+
+# Check Port 8082
+send "netstat -tuln | grep 8082\r"
+expect "#"
+
+# Try to cd into directory. If successful, pull. If not, clone.
+# We use a simple trick: cd fails if dir doesn't exist.
+send "cd $dir && git pull || git clone $repo $dir && cd $dir\r"
+expect "#"
+
+# Deploy using 'docker compose' (modern version)
+# If that fails, try 'docker-compose' (legacy) just in case, but we saw it's missing.
+# We will assume 'docker compose' works since docker version is 28.x
+send "docker compose up -d --build\r"
+expect "#"
+
+# Verify
+send "docker ps | grep dashboard-hercules\r"
+expect "#"
+
+send "exit\r"
+expect eof

@@ -20,6 +20,21 @@ services:
       - "traefik.http.services.hercules.loadbalancer.server.port=80"
       - "traefik.docker.network=root_default"
 
+  backend:
+    build: ./server
+    container_name: dashboard-hercules-backend
+    restart: always
+    volumes:
+      - ./server/prisma:/app/prisma
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - JWT_SECRET=hercules-secret-key-change-me
+      - DATABASE_URL=file:./dev.db
+    networks:
+      - default
+
 networks:
   root_default:
     external: true

@@ -3,7 +3,7 @@ import { AppSidebar } from "./AppSidebar";
 import { Outlet } from "react-router-dom";
 import { DataImporter } from "../dashboard/DataImporter";
 
-export default function Layout() {
+export default function Layout({ children }: { children?: React.ReactNode }) {
     return (
         <SidebarProvider>
             <AppSidebar />
@@ -17,7 +17,7 @@ export default function Layout() {
                     <DataImporter />
                 </header>
                 <main className="flex-1 overflow-auto">
-                    <Outlet />
+                    {children || <Outlet />}
                 </main>
             </SidebarInset>
         </SidebarProvider>

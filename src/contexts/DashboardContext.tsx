@@ -1,13 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ServiceOrder } from '@/types/dashboard';
-import * as XLSX from 'xlsx';
-import localforage from 'localforage';
-
-// Configure localforage
-localforage.config({
-    name: 'HerculesDashboard',
-    storeName: 'dashboard_data'
-});
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface ImportMetadata {
     filename: string;
@@ -26,21 +20,8 @@ interface DashboardContextType {
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
-const EXPECTED_COLUMNS = [
-    "OS", "Tipo", "Status", "Data Abertura", "Data Fechamento", "Finalidade", "Origem",
-    "CNPJ Posto", "Razão Social Posto", "Cidade Posto", "UF Posto", "CPF/CNPJ Consum",
-    "Consumidor", "Cidade Cons", "UF Cons", "Telefone", "Telefone 2", "Ref Prod",
-    "Desc Produto", "Família Prod", "Lote/Serie", "Data Fabricação", "Data Faturamento",
-    "NF de Faturamento", "Faturado Para", "Revendedor", "CNPJ Rev", "Cidade Rev", "UF Rev",
-    "NF Compra", "Data NF Compra", "NF Conserto", "Data NF Conserto", "Obs", "Adicionais da OS",
-    "Qtde  Adicional da OS", "Vlr Unit Adicional da OS", "Vlr Total Adicional da OS",
-    "Obs Adicional da OS", "Defeito Reclamado", "Defeito Constatado", "Garantia", "Tecnico",
-    "Data Hora Check", "Tipo", "Lat", "Lng", "Peças Trocadas", "Descrição Peça",
-    "Qtde Trocada", "Ação de Reparo", "Defeito Peça", "Obs Defeito Peça", "Data Lançto Peça",
-    "Usuários Papel Abertura", "Nº do Extrato", "Status da Extrato", "Data de Pagamento"
-];
-
 export const DashboardProvider = ({ children }: { children: ReactNode }) => {
+    const { user, token } = useAuth();
     const [data, setData] = useState<ServiceOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -71,179 +52,102 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
         });
     };
 
-    const loadDefaultData = async () => {
-        try {
-            setLoading(true);
-            const response = await fetch('/data/ATwebReport.csv');
-            const csvText = await response.text();
-
-            const lines = csvText.split('\n');
-            const headers = lines[0].split(';').map(header => header.replace('﻿', '').trim());
-
-            const parsedData: ServiceOrder[] = [];
-
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-
-                const values = line.split(';');
-                const row: any = {};
-
-                headers.forEach((header, index) => {
-                    row[header] = values[index] || '';
-                });
-
-                parsedData.push(row as ServiceOrder);
-            }
-
-            const processedData = processData(parsedData);
-            setData(processedData);
-            setImportMetadata(null);
-
-            await localforage.removeItem('imported_data');
-            await localforage.removeItem('import_metadata');
-
-        } catch (err) {
-            setError('Erro ao carregar dados padrão: ' + (err as Error).message);
-        } finally {
+    const loadData = async () => {
+        if (!user || !token) {
             setLoading(false);
+            return;
         }
-    };
 
-    const initializeData = async () => {
         try {
             setLoading(true);
 
-            const savedData = await localforage.getItem<ServiceOrder[]>('imported_data');
-            const savedMetadata = await localforage.getItem<ImportMetadata>('import_metadata');
+            const response = await fetch('/api/orders', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
 
-            if (savedData && savedMetadata) {
-                console.log("Loading data from storage...", savedMetadata);
-                setData(savedData);
-                setImportMetadata({
-                    ...savedMetadata,
-                    date: new Date(savedMetadata.date)
-                });
-            } else {
-                console.log("No saved data found, loading default CSV...");
-                await loadDefaultData();
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    // Token expired or invalid
+                    return;
+                }
+                throw new Error('Failed to fetch data');
             }
-        } catch (err) {
-            console.error("Error initializing data:", err);
-            await loadDefaultData();
+
+            const rawRows = await response.json();
+
+            if (rawRows && Array.isArray(rawRows)) {
+                const processedData = processData(rawRows);
+                setData(processedData);
+
+                // Set metadata if we have data (simplified for now as API doesn't return metadata yet)
+                if (processedData.length > 0) {
+                    setImportMetadata({
+                        filename: 'Dados do Servidor',
+                        date: new Date()
+                    });
+                }
+            }
+
+        } catch (err: any) {
+            console.error("Error loading data:", err);
+            setError(err.message);
+            toast.error("Erro ao carregar dados do servidor.");
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        initializeData();
-    }, []);
+        loadData();
+    }, [user, token]);
 
     const importData = async (file: File) => {
+        if (!user || !token) {
+            toast.error("Você precisa estar logado para importar dados.");
+            return;
+        }
+
         setLoading(true);
         setError(null);
         try {
-            const arrayBuffer = await file.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer);
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(sheet);
+            const formData = new FormData();
+            formData.append('file', file);
 
-            if (jsonData.length === 0) {
-                throw new Error("O arquivo está vazio.");
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Falha no upload');
             }
 
-            // Helper to convert Excel serial date to JS Date object
-            const excelDateToJSDate = (serial: number) => {
-                const utc_days = Math.floor(serial - 25569);
-                const utc_value = utc_days * 86400;
-                const date_info = new Date(utc_value * 1000);
-                return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate());
-            }
+            toast.success("Dados enviados para a nuvem com sucesso!");
 
-            // Helper to format date as dd/mm/yyyy
-            const formatDate = (dateVal: any) => {
-                if (!dateVal) return "";
+            // Refresh Data
+            await loadData();
 
-                // Handle Excel serial number
-                if (typeof dateVal === 'number') {
-                    const date = excelDateToJSDate(dateVal);
-                    const day = String(date.getDate()).padStart(2, '0');
-                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                    const year = date.getFullYear();
-                    return `${day}/${month}/${year}`;
-                }
-
-                // Handle string dates with time (e.g., "27/01/2020  00:00:00")
-                if (typeof dateVal === 'string') {
-                    // Extract just the date part (dd/mm/yyyy)
-                    const match = dateVal.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-                    if (match) {
-                        return `${match[1].padStart(2, '0')}/${match[2].padStart(2, '0')}/${match[3]}`;
-                    }
-                }
-
-                return String(dateVal);
-            }
-
-            // Filter and normalize data
-            const normalizedData = jsonData.reduce((acc: any[], row: any) => {
-                const newRow: any = {};
-                let isValidRow = true;
-
-                EXPECTED_COLUMNS.forEach(col => {
-                    let val = row[col];
-
-                    // Check if column is a date column
-                    if (col.includes('Data') || col.includes('Date')) {
-                        val = formatDate(val);
-
-                        // Validation: "Data Abertura" must be present and valid
-                        if (col === "Data Abertura") {
-                            if (!val || !val.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-                                isValidRow = false;
-                            }
-                        }
-                    }
-
-                    newRow[col] = val !== undefined ? String(val) : "";
-                });
-
-                if (isValidRow) {
-                    acc.push(newRow);
-                }
-
-                return acc;
-            }, []);
-
-            const processedData = processData(normalizedData);
-            const metadata = {
-                filename: file.name,
-                date: new Date()
-            };
-
-            setData(processedData);
-            setImportMetadata(metadata);
-
-            await localforage.setItem('imported_data', processedData);
-            await localforage.setItem('import_metadata', metadata);
-
-        } catch (err) {
-            setError('Erro ao importar arquivo: ' + (err as Error).message);
+        } catch (err: any) {
+            setError('Erro ao importar arquivo: ' + err.message);
             console.error(err);
+            toast.error("Erro ao salvar dados: " + err.message);
         } finally {
             setLoading(false);
         }
     };
 
     const clearData = async () => {
-        await localforage.clear();
-        await loadDefaultData();
+        setData([]);
     };
 
     return (
-        <DashboardContext.Provider value={{ data, loading, error, importMetadata, importData, refreshData: loadDefaultData, clearData }}>
+        <DashboardContext.Provider value={{ data, loading, error, importMetadata, importData, refreshData: loadData, clearData }}>
             {children}
         </DashboardContext.Provider>
     );

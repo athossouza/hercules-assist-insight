@@ -1,0 +1,42 @@
+#!/usr/bin/expect
+
+set timeout 60
+set host "31.97.21.53"
+set user "root"
+set password "@Ahs221400#123"
+set dir "hercules-assist-insight"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    timeout {
+        exit 1
+    }
+}
+
+expect "#"
+
+send "cd $dir\r"
+expect "#"
+
+# Check git status
+send "git status\r"
+expect "#"
+
+# List files again
+send "ls -F\r"
+expect "#"
+
+# Try to pull again just in case
+send "git pull\r"
+expect "#"
+
+# Explicitly use the file
+send "docker compose -f docker-compose.yml up -d --build\r"
+expect "#"
+
+send "exit\r"
+expect eof

@@ -1,0 +1,35 @@
+#!/usr/bin/expect
+
+set timeout 120
+set host "31.97.21.53"
+set user "root"
+set password "@Ahs221400#123"
+set dir "hercules-assist-insight"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    timeout {
+        exit 1
+    }
+}
+
+expect "#"
+
+# Go to directory
+send "cd $dir\r"
+expect "#"
+
+# List files to verify clone
+send "ls -F\r"
+expect "#"
+
+# Try to deploy and see output
+send "docker compose up -d --build\r"
+expect "#"
+
+send "exit\r"
+expect eof

@@ -1,0 +1,52 @@
+#!/usr/bin/expect
+
+set timeout 30
+set host "31.97.21.53"
+set user "root"
+set password "@Ahs221400#123"
+set dir "hercules-assist-insight"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    timeout {
+        exit 1
+    }
+}
+
+expect "#"
+
+send "cd $dir\r"
+expect "#"
+
+send "git pull\r"
+expect {
+    "Username for" {
+        # Auth required, abort
+        send "\003" 
+        puts "AUTH_REQUIRED"
+        exit 2
+    }
+    "Already up to date." {
+        # Proceed
+    }
+    "Updating" {
+        # Proceed
+    }
+    timeout {
+        puts "TIMEOUT"
+        exit 1
+    }
+}
+
+expect "#"
+
+# Deploy
+send "docker compose up -d --build\r"
+expect "#"
+
+send "exit\r"
+expect eof

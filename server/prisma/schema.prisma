@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  imports   Import[]
+}
+
+model Import {
+  id        String         @id @default(uuid())
+  filename  String
+  createdAt DateTime       @default(now())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+  orders    ServiceOrder[]
+}
+
+model ServiceOrder {
+  id            String   @id @default(uuid())
+  importId      String
+  import        Import   @relation(fields: [importId], references: [id], onDelete: Cascade)
+  
+  // Core fields mapped from CSV
+  osNumber      String?
+  openingDate   DateTime?
+  closingDate   DateTime?
+  status        String?
+  product       String?
+  defect        String?
+  customerName  String?
+  
+  // Store full raw data as JSON string (SQLite doesn't support JSON type natively in Prisma as well as Postgres, but we can store string)
+  rawData       String 
+  
+  createdAt     DateTime @default(now())
+}
