@@ -60,6 +60,8 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
 
         // Try to load from cache first
         const cachedData = localStorage.getItem('dashboardData');
+        const cachedMetadata = localStorage.getItem('dashboardMetadata');
+
         if (cachedData) {
             try {
                 const parsedCache = JSON.parse(cachedData);
@@ -69,6 +71,18 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
                 }
             } catch (e) {
                 console.error("Error parsing cache", e);
+            }
+        }
+
+        if (cachedMetadata) {
+            try {
+                const parsedMeta = JSON.parse(cachedMetadata);
+                setImportMetadata({
+                    ...parsedMeta,
+                    date: new Date(parsedMeta.date)
+                });
+            } catch (e) {
+                console.error("Error parsing metadata cache", e);
             }
         }
 
@@ -90,7 +104,10 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
                 throw new Error('Failed to fetch data');
             }
 
-            const rawRows = await response.json();
+            const responseData = await response.json();
+            // Handle new response structure: { orders: [], metadata: {} }
+            const rawRows = responseData.orders || responseData; // Fallback for backward compatibility
+            const metadata = responseData.metadata;
 
             if (rawRows && Array.isArray(rawRows)) {
                 // Normalize data: ensure all fields are strings to prevent .trim() errors
@@ -116,12 +133,21 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
                     console.error("Failed to save to localStorage (quota exceeded?)", e);
                 }
 
-                // Set metadata if we have data (simplified for now as API doesn't return metadata yet)
-                if (processedData.length > 0) {
-                    setImportMetadata({
+                // Set metadata
+                if (metadata) {
+                    const newMeta = {
+                        filename: metadata.filename,
+                        date: new Date(metadata.date)
+                    };
+                    setImportMetadata(newMeta);
+                    localStorage.setItem('dashboardMetadata', JSON.stringify(metadata));
+                } else if (processedData.length > 0 && !importMetadata) {
+                    // Fallback if no metadata but we have data
+                    const fallbackMeta = {
                         filename: 'Dados do Servidor',
                         date: new Date()
-                    });
+                    };
+                    setImportMetadata(fallbackMeta);
                 }
             }
 

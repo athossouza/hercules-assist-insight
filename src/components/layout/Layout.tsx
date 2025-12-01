@@ -13,13 +13,15 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     // Simulate progress when loading
     useEffect(() => {
         if (loading) {
-            setProgress(10);
+            setProgress(0);
             const interval = setInterval(() => {
                 setProgress((prev) => {
+                    // Slow down significantly as we approach 90%
                     if (prev >= 90) return prev;
-                    return prev + Math.random() * 10;
+                    const increment = Math.max(0.5, (90 - prev) / 20); // Decaying increment
+                    return prev + increment;
                 });
-            }, 500);
+            }, 200);
             return () => clearInterval(interval);
         } else {
             setProgress(100);

@@ -70,18 +70,29 @@ const createInitialUser = async () => {
 // Data Routes
 app.get('/api/orders', authenticateToken, async (req, res) => {
     try {
-        // Fetch latest import for the user? Or all?
-        // For now, fetch all orders. In real app, might want pagination.
-        // But the frontend expects all data for client-side filtering.
-        // We'll return the rawData JSON strings.
+        // Fetch the latest import for the user to get metadata
+        const latestImport = await prisma.import.findFirst({
+            where: { userId: req.user.id },
+            orderBy: { createdAt: 'desc' }
+        });
 
         const orders = await prisma.serviceOrder.findMany({
-            select: { rawData: true } // Only fetch rawData
+            where: {
+                import: { userId: req.user.id } // Filter by user
+            },
+            select: { rawData: true }
         });
 
         // Parse rawData back to JSON object
         const parsedOrders = orders.map(o => JSON.parse(o.rawData));
-        res.json(parsedOrders);
+
+        res.json({
+            orders: parsedOrders,
+            metadata: latestImport ? {
+                filename: latestImport.filename,
+                date: latestImport.createdAt
+            } : null
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -98,34 +109,54 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
 
         if (jsonData.length === 0) return res.status(400).json({ error: 'Empty file' });
 
-        // Create Import record
-        const importRecord = await prisma.import.create({
-            data: {
-                filename: req.file.originalname,
-                userId: req.user.id
+        // Transaction to replace data: Delete old -> Create new
+        await prisma.$transaction(async (tx) => {
+            // 1. Delete all existing imports (and cascading service orders) for this user
+            // Note: We need to ensure cascading delete is set up in Prisma or delete manually.
+            // Since we didn't explicitly set cascading delete in schema, let's delete orders first.
+
+            // Find all import IDs for this user
+            const userImports = await tx.import.findMany({
+                where: { userId: req.user.id },
+                select: { id: true }
+            });
+            const importIds = userImports.map(i => i.id);
+
+            if (importIds.length > 0) {
+                await tx.serviceOrder.deleteMany({
+                    where: { importId: { in: importIds } }
+                });
+                await tx.import.deleteMany({
+                    where: { id: { in: importIds } }
+                });
             }
+
+            // 2. Create new Import record
+            const importRecord = await tx.import.create({
+                data: {
+                    filename: req.file.originalname,
+                    userId: req.user.id
+                }
+            });
+
+            // 3. Prepare batch insert
+            const serviceOrders = jsonData.map(row => ({
+                importId: importRecord.id,
+                osNumber: String(row['OS'] || row['Número OS'] || ''),
+                status: String(row['Status'] || ''),
+                product: String(row['Desc Produto'] || ''),
+                defect: String(row['Defeito Constatado'] || ''),
+                customerName: String(row['Consumidor'] || ''),
+                rawData: JSON.stringify(row)
+            }));
+
+            // 4. Batch insert
+            await tx.serviceOrder.createMany({
+                data: serviceOrders
+            });
         });
 
-        // Prepare batch insert
-        // We store the raw row as a JSON string in 'rawData'
-        // And map some core fields for potential future querying
-        const serviceOrders = jsonData.map(row => ({
-            importId: importRecord.id,
-            osNumber: String(row['OS'] || row['Número OS'] || ''),
-            status: String(row['Status'] || ''),
-            product: String(row['Desc Produto'] || ''),
-            defect: String(row['Defeito Constatado'] || ''),
-            customerName: String(row['Consumidor'] || ''),
-            rawData: JSON.stringify(row)
-        }));
-
-        // Batch insert using transaction
-        // Prisma createMany is supported in SQLite
-        await prisma.serviceOrder.createMany({
-            data: serviceOrders
-        });
-
-        res.json({ message: 'Upload successful', count: serviceOrders.length });
+        res.json({ message: 'Upload successful', count: jsonData.length });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: error.message });
