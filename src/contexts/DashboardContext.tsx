@@ -149,32 +149,44 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
 
         setLoading(true);
         setError(null);
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
 
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
+        const uploadPromise = new Promise(async (resolve, reject) => {
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Falha no upload');
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Falha no upload');
+                }
+
+                // Refresh Data
+                await loadData();
+                resolve("Dados importados com sucesso!");
+            } catch (err: any) {
+                reject(err);
             }
+        });
 
-            toast.success("Dados enviados para a nuvem com sucesso!");
+        toast.promise(uploadPromise, {
+            loading: 'Enviando e processando arquivo...',
+            success: (data) => `${data}`,
+            error: (err) => `Erro ao importar: ${err.message}`,
+        });
 
-            // Refresh Data
-            await loadData();
-
+        try {
+            await uploadPromise;
         } catch (err: any) {
             setError('Erro ao importar arquivo: ' + err.message);
             console.error(err);
-            toast.error("Erro ao salvar dados: " + err.message);
         } finally {
             setLoading(false);
         }
