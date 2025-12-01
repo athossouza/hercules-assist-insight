@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
-    const { loading } = useDashboardContext();
+    const { loading, user } = useDashboardContext();
     const [progress, setProgress] = useState(0);
 
     // Simulate progress when loading
@@ -40,7 +40,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                         <div className="h-4 w-px bg-border" />
                         <span className="font-semibold">Hercules Motores</span>
                     </div>
-                    <DataImporter />
+                    <div className="flex items-center gap-4">
+                        {/* Show current user email for debugging/clarity */}
+                        <div className="text-xs text-muted-foreground hidden md:flex flex-col items-end">
+                            {user && <span>{user.email}</span>}
+                        </div>
+                        <DataImporter />
+                    </div>
 
                     {/* Global Progress Bar */}
                     {loading && (

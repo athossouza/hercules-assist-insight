@@ -16,6 +16,7 @@ interface DashboardContextType {
     importData: (file: File) => Promise<void>;
     refreshData: () => Promise<void>;
     clearData: () => Promise<void>;
+    user: any; // Using any for simplicity, but ideally should be User type
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -231,7 +232,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-        <DashboardContext.Provider value={{ data, loading, error, importMetadata, importData, refreshData: loadData, clearData }}>
+        <DashboardContext.Provider value={{ data, loading, error, importMetadata, importData, refreshData: loadData, clearData, user }}>
             {children}
         </DashboardContext.Provider>
     );
