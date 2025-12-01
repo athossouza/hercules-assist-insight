@@ -1,0 +1,24 @@
+#!/usr/bin/expect -f
+
+set timeout 30
+set host "31.97.21.53"
+set user "root"
+set password "@Ahs221400#123"
+
+spawn ssh $user@$host
+expect {
+    "yes/no" { send "yes\r"; exp_continue }
+    "password:" { send "$password\r" }
+}
+
+expect "#"
+send "cd ~/hercules-assist-insight\r"
+expect "#"
+send "cat docker-compose.yml\r"
+expect "#"
+send "docker compose up -d --build backend\r"
+expect "#"
+send "docker compose logs backend\r"
+expect "#"
+send "exit\r"
+expect eof

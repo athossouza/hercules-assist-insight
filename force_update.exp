@@ -1,0 +1,28 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+set host "31.97.21.53"
+set user "root"
+set password "@Ahs221400#123"
+
+spawn ssh $user@$host
+expect {
+    "yes/no" { send "yes\r"; exp_continue }
+    "password:" { send "$password\r" }
+}
+
+expect "#"
+send "cd ~/hercules-assist-insight\r"
+expect "#"
+send "git fetch --all\r"
+expect "#"
+send "git reset --hard origin/main\r"
+expect "#"
+send "git pull\r"
+expect "#"
+send "docker compose down\r"
+expect "#"
+send "docker compose up -d --build\r"
+expect "#"
+send "exit\r"
+expect eof
