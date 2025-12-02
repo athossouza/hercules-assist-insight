@@ -140,10 +140,13 @@ export const useDashboardData = () => {
     let validServiceTimeCount = 0;
 
     filteredData.forEach(item => {
-      const openDate = parseDate(item["Data Abertura"]);
-      const closeDate = parseDate(item["Data Fechamento"]);
+      // Use normalized dates from backend if available, otherwise fallback to parsing raw string
+      // Backend returns ISO strings for openingDate/closingDate
+      const openDate = item.openingDate ? new Date(item.openingDate) : parseDate(item["Data Abertura"]);
+      const closeDate = item.closingDate ? new Date(item.closingDate) : parseDate(item["Data Fechamento"]);
 
-      if (openDate && closeDate) {
+      // Only consider if both dates are valid
+      if (openDate && !isNaN(openDate.getTime()) && closeDate && !isNaN(closeDate.getTime())) {
         const days = calculateDaysDifference(openDate, closeDate);
         // Ensure non-negative and reasonable values
         if (days >= 0) {

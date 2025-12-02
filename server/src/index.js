@@ -80,11 +80,19 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
             where: {
                 import: { userId: req.user.id } // Filter by user
             },
-            select: { rawData: true }
+            select: {
+                rawData: true,
+                openingDate: true,
+                closingDate: true
+            }
         });
 
-        // Parse rawData back to JSON object
-        const parsedOrders = orders.map(o => JSON.parse(o.rawData));
+        // Parse rawData back to JSON object and merge normalized dates
+        const parsedOrders = orders.map(o => ({
+            ...JSON.parse(o.rawData),
+            openingDate: o.openingDate, // ISO string or null
+            closingDate: o.closingDate  // ISO string or null
+        }));
 
         res.json({
             orders: parsedOrders,
@@ -140,15 +148,50 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
             });
 
             // 3. Prepare batch insert
-            const serviceOrders = jsonData.map(row => ({
-                importId: importRecord.id,
-                osNumber: String(row['OS'] || row['Número OS'] || ''),
-                status: String(row['Status'] || ''),
-                product: String(row['Desc Produto'] || ''),
-                defect: String(row['Defeito Constatado'] || ''),
-                customerName: String(row['Consumidor'] || ''),
-                rawData: JSON.stringify(row)
-            }));
+            const serviceOrders = jsonData.map(row => {
+                // Helper to parse dates
+                const parseDate = (value) => {
+                    if (!value) return null;
+
+                    // Excel serial number
+                    if (typeof value === 'number' || /^\d+(\.\d+)?$/.test(value)) {
+                        const serial = parseFloat(value);
+                        const utc_days = Math.floor(serial - 25569);
+                        const utc_value = utc_days * 86400;
+                        const date_info = new Date(utc_value * 1000);
+                        return new Date(date_info.getUTCFullYear(), date_info.getUTCMonth(), date_info.getUTCDate());
+                    }
+
+                    // String format "DD/MM/YYYY" or "DD/MM/YYYY HH:mm:ss"
+                    if (typeof value === 'string') {
+                        const cleanStr = value.split('  ')[0].trim(); // Remove double spaces often found in these files
+                        const parts = cleanStr.split(' ')[0].split('/'); // Get date part
+                        if (parts.length === 3) {
+                            const [day, month, year] = parts.map(Number);
+                            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                                return new Date(year, month - 1, day);
+                            }
+                        }
+                    }
+
+                    return null;
+                };
+
+                const openingDate = parseDate(row['Data Abertura']);
+                const closingDate = parseDate(row['Data Fechamento']);
+
+                return {
+                    importId: importRecord.id,
+                    osNumber: String(row['OS'] || row['Número OS'] || ''),
+                    status: String(row['Status'] || ''),
+                    product: String(row['Desc Produto'] || ''),
+                    defect: String(row['Defeito Constatado'] || ''),
+                    customerName: String(row['Consumidor'] || ''),
+                    openingDate: openingDate,
+                    closingDate: closingDate,
+                    rawData: JSON.stringify(row)
+                };
+            });
 
             // 4. Batch insert
             await tx.serviceOrder.createMany({
