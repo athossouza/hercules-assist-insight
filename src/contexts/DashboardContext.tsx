@@ -188,6 +188,12 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
         setLoading(true);
         setError(null);
 
+        // Clear cache immediately to prevent showing stale data if page is reloaded
+        localStorage.removeItem('dashboardData');
+        localStorage.removeItem('dashboardMetadata');
+        setData([]); // Clear current data view
+        setImportMetadata(null);
+
         const uploadPromise = new Promise(async (resolve, reject) => {
             try {
                 const formData = new FormData();

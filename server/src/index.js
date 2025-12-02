@@ -87,6 +87,13 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
             }
         });
 
+        console.log(`[API] /api/orders - User: ${req.user.email} - Orders Found: ${orders.length}`);
+        if (latestImport) {
+            console.log(`[API] Latest Import: ${latestImport.filename} (${latestImport.createdAt})`);
+        } else {
+            console.log(`[API] No import found for user.`);
+        }
+
         // Parse rawData back to JSON object and merge normalized dates
         const parsedOrders = orders.map(o => ({
             ...JSON.parse(o.rawData),
