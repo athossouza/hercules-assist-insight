@@ -91,9 +91,12 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
             // Don't set loading to true if we have cached data, to avoid flickering
             if (!cachedData) setLoading(true);
 
-            const response = await fetch('/api/orders', {
+            // Add timestamp to prevent caching
+            const response = await fetch(`/api/orders?t=${new Date().getTime()}`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
                 }
             });
 
