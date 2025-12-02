@@ -74,33 +74,37 @@ export const ServiceOrderModal = ({
                                     <TableCell className="font-medium">{order.OS}</TableCell>
                                     <TableCell>
                                         {(() => {
-                                            const dateValue = order.openingDate || order["Data Abertura"];
-                                            if (!dateValue) return "-";
+                                            const val = order.openingDate || order["Data Abertura"];
+                                            if (!val) return "-";
 
-                                            // Handle ISO string from backend
+                                            // 1. Try ISO date from backend
                                             if (order.openingDate) {
-                                                try {
-                                                    return new Date(order.openingDate).toLocaleDateString('pt-BR');
-                                                } catch (e) {
-                                                    return order.openingDate;
+                                                const d = new Date(order.openingDate);
+                                                if (!isNaN(d.getTime())) return d.toLocaleDateString('pt-BR');
+                                            }
+
+                                            const strVal = String(val).trim();
+
+                                            // 2. Try Excel serial (number or string like "45000.123")
+                                            // Allow comma or dot for decimal
+                                            if (/^\d+([.,]\d+)?$/.test(strVal)) {
+                                                const serial = parseFloat(strVal.replace(',', '.'));
+                                                // Basic sanity check: Excel dates for ~2020 are around 43000. 
+                                                // 25569 is 1970-01-01. So anything > 25569 is post-1970.
+                                                if (!isNaN(serial) && serial > 25569) {
+                                                    const utc_days = Math.floor(serial - 25569);
+                                                    const utc_value = utc_days * 86400;
+                                                    const date_info = new Date(utc_value * 1000);
+                                                    return new Date(date_info.getUTCFullYear(), date_info.getUTCMonth(), date_info.getUTCDate()).toLocaleDateString('pt-BR');
                                                 }
                                             }
 
-                                            // Handle Excel serial number
-                                            if (/^\d+(\.\d+)?$/.test(String(dateValue))) {
-                                                const serial = parseFloat(String(dateValue));
-                                                const utc_days = Math.floor(serial - 25569);
-                                                const utc_value = utc_days * 86400;
-                                                const date_info = new Date(utc_value * 1000);
-                                                return new Date(date_info.getUTCFullYear(), date_info.getUTCMonth(), date_info.getUTCDate()).toLocaleDateString('pt-BR');
+                                            // 3. Try standard date string (DD/MM/YYYY)
+                                            if (strVal.includes('/')) {
+                                                return strVal.split(' ')[0];
                                             }
 
-                                            // Handle DD/MM/YYYY
-                                            if (typeof dateValue === 'string' && dateValue.includes('/')) {
-                                                return dateValue.split(' ')[0];
-                                            }
-
-                                            return String(dateValue);
+                                            return strVal;
                                         })()}
                                     </TableCell>
                                     <TableCell className="max-w-[200px]" title={order.relatedItems?.map(i => i["Desc Produto"]).join(", ") || order["Desc Produto"]}>
