@@ -86,8 +86,18 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                         </div>
                     )}
                 </header>
-                <main className="flex-1 overflow-auto">
+                <main className="flex-1 overflow-auto relative">
                     {children || <Outlet />}
+
+                    {/* Loading Overlay */}
+                    {loading && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm transition-all duration-200">
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                                <p className="text-sm font-medium text-muted-foreground animate-pulse">Processando dados...</p>
+                            </div>
+                        </div>
+                    )}
                 </main>
             </SidebarInset>
         </SidebarProvider>
