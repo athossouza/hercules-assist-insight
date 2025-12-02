@@ -55,6 +55,9 @@ export interface ServiceOrder {
   "Nº do Extrato": string;
   "Status da Extrato": string;
   "Data de Pagamento": string;
+  // Normalized dates from backend
+  openingDate?: string | null;
+  closingDate?: string | null;
   relatedItems?: ServiceOrder[];
 }
 
