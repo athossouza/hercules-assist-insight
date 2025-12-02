@@ -103,14 +103,29 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
             const { metadata: serverMetadata } = await metaResponse.json();
 
             // 3. Compare metadata
-            const needsUpdate = !parsedMetadata ||
-                !serverMetadata ||
-                serverMetadata.filename !== parsedMetadata.filename ||
-                new Date(serverMetadata.date).getTime() !== parsedMetadata.date.getTime();
+            let needsUpdate = true;
+
+            if (parsedMetadata && serverMetadata) {
+                const filenameMatch = serverMetadata.filename === parsedMetadata.filename;
+                const serverDate = new Date(serverMetadata.date).getTime();
+                const localDate = parsedMetadata.date.getTime();
+                // Allow 2 seconds tolerance for potential precision loss
+                const dateMatch = Math.abs(serverDate - localDate) < 2000;
+
+                if (filenameMatch && dateMatch) {
+                    needsUpdate = false;
+                } else {
+                    console.log(`[Cache] Update needed. Filename match: ${filenameMatch}, Date match: ${dateMatch}`);
+                    console.log(`[Cache] Server: ${serverMetadata.filename} (${serverMetadata.date})`);
+                    console.log(`[Cache] Local: ${parsedMetadata.filename} (${parsedMetadata.date.toISOString()})`);
+                }
+            } else {
+                console.log("[Cache] Missing metadata (local or server). Forcing update.");
+            }
 
             // If cache is valid and metadata matches, we are done!
             if (!needsUpdate && cachedData) {
-                console.log("Cache is up to date. Skipping fetch.");
+                console.log("[Cache] Cache is up to date. Skipping fetch.");
                 setLoading(false);
                 return;
             }
