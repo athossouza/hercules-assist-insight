@@ -2,6 +2,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { ServiceOrder } from '@/types/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import localforage from 'localforage';
+
+// Configure localforage
+localforage.config({
+    name: 'dashboard-hercules',
+    storeName: 'dashboard_data'
+});
 
 interface ImportMetadata {
     filename: string;
@@ -59,31 +66,27 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
-        // 1. Load cache from localStorage
-        const cachedData = localStorage.getItem('dashboardData');
-        const cachedMetadata = localStorage.getItem('dashboardMetadata');
+        // 1. Load cache from localforage (IndexedDB)
+        let cachedData: ServiceOrder[] | null = null;
+        let cachedMetadata: ImportMetadata | null = null;
         let parsedMetadata: ImportMetadata | null = null;
 
-        if (cachedMetadata) {
-            try {
-                const parsed = JSON.parse(cachedMetadata);
-                parsedMetadata = { ...parsed, date: new Date(parsed.date) };
-                setImportMetadata(parsedMetadata);
-            } catch (e) {
-                console.error("Error parsing metadata cache", e);
-            }
-        }
+        try {
+            cachedData = await localforage.getItem<ServiceOrder[]>('dashboardData');
+            const rawMetadata = await localforage.getItem<any>('dashboardMetadata');
 
-        if (cachedData) {
-            try {
-                const parsedCache = JSON.parse(cachedData);
-                if (Array.isArray(parsedCache) && parsedCache.length > 0) {
-                    setData(parsedCache);
-                    setLoading(false); // Show cached data immediately
-                }
-            } catch (e) {
-                console.error("Error parsing cache", e);
+            if (rawMetadata) {
+                cachedMetadata = rawMetadata;
+                parsedMetadata = { ...rawMetadata, date: new Date(rawMetadata.date) };
+                setImportMetadata(parsedMetadata);
             }
+
+            if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                setData(cachedData);
+                setLoading(false); // Show cached data immediately
+            }
+        } catch (e) {
+            console.error("Error reading from localforage", e);
         }
 
         try {
@@ -130,7 +133,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
                 return;
             }
 
-            console.log("Cache outdated or missing. Fetching fresh data...");
+            console.log("[Cache] Cache outdated or missing. Fetching fresh data...");
             if (cachedData) setLoading(true); // Show loading if we are updating existing data
 
             // 4. Fetch full data if needed
@@ -164,9 +167,9 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
                 setData(processedData);
 
                 try {
-                    localStorage.setItem('dashboardData', JSON.stringify(processedData));
+                    await localforage.setItem('dashboardData', processedData);
                 } catch (e) {
-                    console.error("Failed to save to localStorage", e);
+                    console.error("Failed to save to localforage", e);
                 }
 
                 if (metadata) {
@@ -175,7 +178,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
                         date: new Date(metadata.date)
                     };
                     setImportMetadata(newMeta);
-                    localStorage.setItem('dashboardMetadata', JSON.stringify(metadata));
+                    await localforage.setItem('dashboardMetadata', metadata);
                 }
             }
 
@@ -201,9 +204,14 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
         setLoading(true);
         setError(null);
 
-        // Clear cache immediately to prevent showing stale data if page is reloaded
-        localStorage.removeItem('dashboardData');
-        localStorage.removeItem('dashboardMetadata');
+        // Clear cache immediately
+        try {
+            await localforage.removeItem('dashboardData');
+            await localforage.removeItem('dashboardMetadata');
+        } catch (e) {
+            console.error("Error clearing localforage", e);
+        }
+
         setData([]); // Clear current data view
         setImportMetadata(null);
 
@@ -251,6 +259,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
 
     const clearData = async () => {
         setData([]);
+        await localforage.clear();
     };
 
     return (
