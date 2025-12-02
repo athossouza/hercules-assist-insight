@@ -59,9 +59,20 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
-        // Try to load from cache first
+        // 1. Load cache from localStorage
         const cachedData = localStorage.getItem('dashboardData');
         const cachedMetadata = localStorage.getItem('dashboardMetadata');
+        let parsedMetadata: ImportMetadata | null = null;
+
+        if (cachedMetadata) {
+            try {
+                const parsed = JSON.parse(cachedMetadata);
+                parsedMetadata = { ...parsed, date: new Date(parsed.date) };
+                setImportMetadata(parsedMetadata);
+            } catch (e) {
+                console.error("Error parsing metadata cache", e);
+            }
+        }
 
         if (cachedData) {
             try {
@@ -75,46 +86,56 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
             }
         }
 
-        if (cachedMetadata) {
-            try {
-                const parsedMeta = JSON.parse(cachedMetadata);
-                setImportMetadata({
-                    ...parsedMeta,
-                    date: new Date(parsedMeta.date)
-                });
-            } catch (e) {
-                console.error("Error parsing metadata cache", e);
-            }
-        }
-
         try {
-            // Don't set loading to true if we have cached data, to avoid flickering
+            // 2. Check server metadata to see if we need to update
+            // Don't set loading true yet if we have cache
             if (!cachedData) setLoading(true);
 
-            // Add timestamp to prevent caching
+            const metaResponse = await fetch(`/api/orders/metadata?t=${new Date().getTime()}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Cache-Control': 'no-cache'
+                }
+            });
+
+            if (!metaResponse.ok) throw new Error('Failed to fetch metadata');
+
+            const { metadata: serverMetadata } = await metaResponse.json();
+
+            // 3. Compare metadata
+            const needsUpdate = !parsedMetadata ||
+                !serverMetadata ||
+                serverMetadata.filename !== parsedMetadata.filename ||
+                new Date(serverMetadata.date).getTime() !== parsedMetadata.date.getTime();
+
+            // If cache is valid and metadata matches, we are done!
+            if (!needsUpdate && cachedData) {
+                console.log("Cache is up to date. Skipping fetch.");
+                setLoading(false);
+                return;
+            }
+
+            console.log("Cache outdated or missing. Fetching fresh data...");
+            if (cachedData) setLoading(true); // Show loading if we are updating existing data
+
+            // 4. Fetch full data if needed
             const response = await fetch(`/api/orders?t=${new Date().getTime()}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
+                    'Cache-Control': 'no-cache'
                 }
             });
 
             if (!response.ok) {
-                if (response.status === 401 || response.status === 403) {
-                    // Token expired or invalid
-                    return;
-                }
+                if (response.status === 401 || response.status === 403) return;
                 throw new Error('Failed to fetch data');
             }
 
             const responseData = await response.json();
-            // Handle new response structure: { orders: [], metadata: {} }
-            const rawRows = responseData.orders || responseData; // Fallback for backward compatibility
+            const rawRows = responseData.orders || responseData;
             const metadata = responseData.metadata;
 
             if (rawRows && Array.isArray(rawRows)) {
-                // Normalize data: ensure all fields are strings to prevent .trim() errors
                 const normalizedRows = rawRows.map(row => {
                     const newRow: any = {};
                     Object.keys(row).forEach(key => {
@@ -125,51 +146,28 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
                 });
 
                 const processedData = processData(normalizedRows);
-
-                // Only update if data has changed (simple length check for now, or deep compare if needed)
-                // For performance, we'll just update it. React handles diffing.
                 setData(processedData);
 
-                // Update cache
                 try {
                     localStorage.setItem('dashboardData', JSON.stringify(processedData));
                 } catch (e) {
-                    console.error("Failed to save to localStorage (quota exceeded?)", e);
+                    console.error("Failed to save to localStorage", e);
                 }
 
-                // Set metadata
                 if (metadata) {
                     const newMeta = {
                         filename: metadata.filename,
                         date: new Date(metadata.date)
                     };
-                    // Always update state and cache if metadata is present
                     setImportMetadata(newMeta);
                     localStorage.setItem('dashboardMetadata', JSON.stringify(metadata));
-                } else if (processedData.length > 0 && !importMetadata) {
-                    // Fallback if no metadata but we have data
-                    const fallbackMeta = {
-                        filename: 'Dados do Servidor',
-                        date: new Date()
-                    };
-                    setImportMetadata(fallbackMeta);
-                } else if (!metadata && importMetadata) {
-                    // If API returns no metadata (e.g. cleared), but we have local metadata, 
-                    // we might want to keep it OR clear it. 
-                    // But since we just fetched fresh data, if metadata is missing, it implies no import.
-                    // However, our backend returns null if no import.
-                    // So if metadata is null, we should probably clear it?
-                    // But let's be safe and keep it if we have data.
                 }
             }
 
         } catch (err: any) {
             console.error("Error loading data:", err);
             setError(err.message);
-            // Only show toast if we don't have cached data, to be less annoying
-            if (!data.length) {
-                toast.error("Erro ao carregar dados do servidor.");
-            }
+            if (!data.length) toast.error("Erro ao carregar dados do servidor.");
         } finally {
             setLoading(false);
         }

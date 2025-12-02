@@ -113,6 +113,25 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
     }
 });
 
+app.get('/api/orders/metadata', authenticateToken, async (req, res) => {
+    try {
+        const latestImport = await prisma.import.findFirst({
+            where: { userId: req.user.id },
+            orderBy: { createdAt: 'desc' },
+            select: { filename: true, createdAt: true }
+        });
+
+        res.json({
+            metadata: latestImport ? {
+                filename: latestImport.filename,
+                date: latestImport.createdAt
+            } : null
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
